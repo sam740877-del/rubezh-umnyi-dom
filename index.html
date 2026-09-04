@@ -1,0 +1,2086 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Умный дом в новостройке — предложение застройщику</title>
+<meta name="description" content="Локальный умный дом для новостройки: сценарии живут в квартире и работают без интернета, протечка замечается сразу и машина обесточивается, штробление под выключатели уходит из сметы. Живой стенд — нажмите сценарий прямо на странице.">
+<meta property="og:title" content="Умный дом в новостройке — предложение застройщику">
+<meta property="og:description" content="Не лампочка с голосом: система сама замечает протечку и сломанный датчик, работает без интернета и вычёркивает штробление из сметы. Со страницы можно нажать сценарий на живом стенде.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23FCFCFA'/%3E%3Crect x='2.5' y='2.5' width='11' height='11' fill='none' stroke='%238A5A2B' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='2.4' fill='%238A5A2B'/%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:400;font-display:swap;
+  src:url("shrifty/inter-tight-v9-cyrillic_latin-regular.woff2") format("woff2")}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:500;font-display:swap;
+  src:url("shrifty/inter-tight-v9-cyrillic_latin-500.woff2") format("woff2")}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:600;font-display:swap;
+  src:url("shrifty/inter-tight-v9-cyrillic_latin-600.woff2") format("woff2")}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:700;font-display:swap;
+  src:url("shrifty/inter-tight-v9-cyrillic_latin-700.woff2") format("woff2")}
+@font-face{font-family:"Literata";font-style:normal;font-weight:600;font-display:swap;
+  src:url("shrifty/literata-v40-cyrillic_latin-600.woff2") format("woff2")}
+@font-face{font-family:"Literata";font-style:normal;font-weight:700;font-display:swap;
+  src:url("shrifty/literata-v40-cyrillic_latin-700.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400;font-display:swap;
+  src:url("shrifty/jetbrains-mono-v24-cyrillic_latin-regular.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:500;font-display:swap;
+  src:url("shrifty/jetbrains-mono-v24-cyrillic_latin-500.woff2") format("woff2")}
+:root{
+  --paper:#FCFCFA;
+  --surface:#F3F2EE;
+  --raised:#FFFFFF;
+  --ink:#1C1F24;
+  --ink-2:#5A6270;
+  --ink-3:#8A9199;
+  --accent:#8A5A2B;
+  --accent-soft:#F2E9DF;
+  --line:#DFDCD5;
+  --line-strong:#C3BFB6;
+  --ok:#2F7D57;
+  --alarm:#A63A2E;
+  --dark-bg:#16181B;
+  --dark-surface:#1D2024;
+  --dark-ink:#ECEBE7;
+  --dark-ink-2:#A3A7AD;
+  --dark-ink-3:#767B82;
+  --dark-accent:#C98544;
+  --dark-line:#2C3036;
+  --dark-ok:#4FA97B;
+  --dark-alarm:#C4584A;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Inter Tight",system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 32px}
+.narrow{max-width:680px}
+h1,h2,h3{
+  font-family:Literata,Georgia,"Times New Roman",serif;
+  font-weight:600;
+  letter-spacing:-.015em;
+  text-wrap:balance;
+  margin:0;
+}
+h1{font-size:clamp(34px,5vw,58px);line-height:1.14;max-width:22ch;margin-bottom:26px}
+h2{font-size:clamp(26px,3.2vw,36px);line-height:1.2;max-width:26ch;margin-bottom:16px}
+h3{font-size:21px;letter-spacing:-.01em;margin-bottom:10px}
+p{text-wrap:pretty}
+.eyebrow{
+  display:flex;align-items:center;gap:12px;
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:28px;font-weight:600;
+}
+.eyebrow::before{content:"";width:44px;height:1px;background:var(--accent);flex-shrink:0}
+.lead{font-size:19px;color:var(--ink-2);max-width:60ch;margin:0 0 40px}
+.section-lead{color:var(--ink-2);max-width:64ch;margin:0 0 56px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.btn{
+  display:inline-block;min-height:48px;line-height:48px;padding:0 26px;
+  border-radius:4px;font-size:15px;font-weight:600;text-decoration:none;
+  border:1px solid transparent;
+  transition:background .16s ease-out,border-color .16s ease-out,transform .1s ease-out;
+}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.btn-primary,.btn-primary:visited,.btn-primary:link{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#74491F}
+.btn-ghost,.btn-ghost:visited,.btn-ghost:link{border-color:var(--line-strong);color:var(--ink)}
+.btn-ghost:hover{background:var(--surface)}
+.btn[aria-disabled="true"],.btn[aria-disabled="true"]:hover{
+  opacity:.45;cursor:not-allowed}
+.btn-ghost[aria-disabled="true"]:hover{background:transparent}
+.btn-primary[aria-disabled="true"]:hover{background:var(--accent)}
+.cabinet-login{margin:16px 0 0;font-size:14.5px;line-height:1.6;
+  color:var(--ink-3);max-width:640px}
+.hero{
+  position:relative;padding:88px 0 96px;border-bottom:1px solid var(--line);
+  background-image:
+    linear-gradient(to right,var(--line) 1px,transparent 1px),
+    linear-gradient(to bottom,var(--line) 1px,transparent 1px);
+  background-size:32px 32px;background-position:center top;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;z-index:0;
+  background:linear-gradient(to bottom,rgba(252,252,250,.35),var(--paper) 82%);
+  pointer-events:none;
+}
+.hero-inner{position:relative;z-index:1}
+section{padding:104px 0;border-bottom:1px solid var(--line)}
+section.soft{background:var(--surface)}
+section.pause{padding:136px 0}
+.pains{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border-top:1px solid var(--line)}
+.pain{padding:32px 32px 32px 0;border-bottom:1px solid var(--line)}
+.pain + .pain{border-left:1px solid var(--line);padding-left:32px}
+@media (max-width:900px){
+  .pains{grid-template-columns:1fr}
+  .pain + .pain{border-left:none;padding-left:0}
+  .pain{padding-right:0}
+  .contact + .contact{border-left:none;padding-left:0}
+}
+.pain .q{font-family:Literata,Georgia,serif;font-weight:600;font-size:18px;
+  margin-bottom:10px;letter-spacing:-.01em}
+.pain .a{color:var(--ink-2);font-size:15.5px}
+.args{border-top:1px solid var(--line)}
+.arg{display:grid;grid-template-columns:64px 1fr;gap:28px;
+  padding:36px 0;border-bottom:1px solid var(--line);align-items:start}
+.arg .num{
+  font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:13px;color:var(--accent);font-weight:600;letter-spacing:.04em;
+  padding-top:4px;font-variant-numeric:tabular-nums;
+}
+.args-razdel{
+  display:flex;align-items:center;gap:12px;
+  padding:34px 0 14px;border-bottom:1px solid var(--line);
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;
+}
+.args-razdel::before{
+  content:"";width:44px;height:1px;background:var(--accent);flex-shrink:0
+}
+.arg p{margin:0 0 10px;color:var(--ink-2);font-size:15.5px}
+.why{margin-top:14px;font-size:14.5px;color:var(--ink-2)}
+.why b{color:var(--accent);font-weight:600}
+.why + .why{margin-top:4px}
+.proza{max-width:68ch}
+.proza p{font-size:17px;color:var(--ink-2);margin:0 0 16px}
+.proza .usloviye{font-size:15px;color:var(--ink-2);
+  padding:14px 18px;background:var(--accent-soft);
+  border-left:2px solid var(--accent);margin:0}
+.note{margin-top:14px;padding:14px 18px;background:var(--accent-soft);
+  border-left:2px solid var(--accent);font-size:14px;color:#6B5136}
+table.calc{width:100%;border-collapse:collapse;margin-top:18px;
+  font-size:15px;font-variant-numeric:tabular-nums}
+table.calc caption{text-align:left;font-size:12.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);padding-bottom:10px}
+table.calc th{text-align:left;font-weight:500;color:var(--ink);
+  padding:9px 0;border-bottom:1px solid var(--line)}
+table.calc th{background-image:radial-gradient(circle,var(--line-strong) .9px,transparent 1.2px);
+  background-size:8px 2px;background-repeat:repeat-x;
+  background-position:0 calc(100% - 15px)}
+table.calc th span{background:var(--paper);padding-right:10px}
+table.calc tr.total th{background-position:0 calc(100% - 16px)}
+table.calc td.sum{text-align:right;padding:9px 0;white-space:nowrap;
+  border-bottom:1px solid var(--line);font-weight:500;width:1%}
+table.calc tr.detail td{padding:0 0 9px;font-size:13px;color:var(--ink-3);
+  border-bottom:1px solid var(--line)}
+table.calc tr.total th,table.calc tr.total td{border-bottom:none;
+  border-top:2px solid var(--accent);color:var(--accent);
+  font-weight:600;padding-top:11px;font-size:16.5px}
+.cmp-wrap{overflow-x:auto;--wrap-bg:var(--paper);
+  background:
+    linear-gradient(to right,var(--wrap-bg) 30%,transparent) left/40px 100%,
+    linear-gradient(to left,var(--wrap-bg) 30%,transparent) right/40px 100%,
+    radial-gradient(farthest-side at 0 50%,rgba(28,31,36,.14),transparent) left/14px 100%,
+    radial-gradient(farthest-side at 100% 50%,rgba(28,31,36,.14),transparent) right/14px 100%;
+  background-repeat:no-repeat;
+  background-attachment:local,local,scroll,scroll}
+section.soft .cmp-wrap{--wrap-bg:var(--surface)}
+table.cmp{width:100%;border-collapse:collapse;font-size:15.5px;min-width:620px;
+  font-variant-numeric:tabular-nums}
+table.cmp th,table.cmp td{padding:16px 18px;text-align:left;
+  border-bottom:1px solid var(--line);vertical-align:top}
+table.cmp thead th{font-size:12px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-3);font-weight:600;border-bottom:1px solid var(--line-strong)}
+table.cmp td:first-child{color:var(--ink-2);width:34%;padding-left:0;position:relative}
+table.cmp .them{color:var(--ink-2)}
+table.cmp .us{color:var(--ink);font-weight:600}
+table.cmp tbody tr:last-child td{border-bottom:none}
+table.cmp.smeta td:not(:first-child),
+table.cmp.smeta thead th:not(:first-child){
+  text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;width:20%}
+table.cmp.smeta td:first-child,table.cmp.smeta thead th:first-child{width:40%}
+table.cmp .sub{display:block;margin-top:4px;font-size:13px;color:var(--ink-3)}
+table.cmp .dash{color:var(--ink-3)}
+table.cmp tr.row-total td{border-top:1px solid var(--line-strong);color:var(--ink)}
+table.cmp tr.row-minus td{color:var(--ok)}
+table.cmp tr.row-final td{border-top:2px solid var(--accent);
+  border-bottom:none;color:var(--accent);font-size:17px;padding-top:18px}
+.play{margin:0 0 26px;padding:22px 24px;background:var(--dark-surface);
+  border:1px solid var(--dark-line);border-radius:2px}
+.play-head{font-size:15px;color:var(--dark-ink-2);line-height:1.6;margin-bottom:16px}
+.play-head b{display:block;color:var(--dark-ink);font-size:17px;
+  font-weight:600;margin-bottom:5px}
+.play-btns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.play-btns .btn{cursor:pointer;font-family:inherit;font-size:14.5px}
+.play-btns .btn-primary{background:var(--dark-accent);color:#16181B;border:none}
+.play-btns .btn-ghost{background:transparent;color:var(--dark-ink);
+  border:1px solid var(--dark-line)}
+.play-btns .btn:disabled{opacity:.5;cursor:default}
+.play-log{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:13px;line-height:1.85;color:var(--dark-ink-2);
+  border-top:1px solid var(--dark-line);padding-top:14px;min-height:96px}
+.play-log .play-hint{color:var(--dark-ink-3)}
+.play-log .ev-on{color:var(--dark-accent)}
+.play-log .ev-off{color:var(--dark-ink-3)}
+.play-log .ev-title{color:var(--dark-ink);margin-bottom:6px}
+.play-auto{border-left:2px solid var(--dark-accent)}
+.hum-badge{position:absolute;transform:translate(-50%,-150%);
+  font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:12px;color:var(--dark-ink);background:var(--dark-surface);
+  border:1px solid var(--dark-line);border-radius:3px;padding:2px 7px;
+  white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
+.hum-badge b{color:var(--dark-accent);font-weight:500}
+.try{margin:26px auto 30px;display:grid;gap:18px;max-width:64ch;text-align:left}
+.try-step{display:grid;grid-template-columns:34px 1fr;gap:16px;align-items:start}
+.try-num{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:13px;color:var(--accent);padding-top:2px;letter-spacing:.05em}
+.try-step div:last-child{font-size:15.5px;color:var(--ink-2);line-height:1.62}
+.try-step b{color:var(--ink);font-weight:600}
+.honest{border-left:2px solid var(--accent);padding:8px 0 8px 32px}
+.honest p{color:var(--ink-2);margin:0 0 14px;font-size:15.5px}
+.honest p:last-child{margin-bottom:0}
+.honest b{color:var(--ink);font-weight:600}
+.final .note{text-align:left}
+.voice{padding:104px 0}
+.voice-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:28px 40px;margin:44px 0 40px;
+}
+.voice-card h3{font-size:17px;margin:0 0 10px;font-weight:600}
+.voice-card p{margin:0 0 12px;color:var(--ink-2)}
+.voice-card .voice-note{
+  color:var(--ink-3);font-size:13.5px;
+  padding-left:14px;border-left:2px solid var(--line);
+}
+@media (max-width:700px){
+  .voice{padding:72px 0}
+  .voice-grid{gap:24px;margin:32px 0}
+}
+.live{
+  background:var(--dark-bg);color:var(--dark-ink);
+  padding:104px 0;border-bottom:none;
+  background-image:
+    linear-gradient(to right,var(--dark-line) 1px,transparent 1px),
+    linear-gradient(to bottom,var(--dark-line) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+.live h2{color:var(--dark-ink)}
+.live .eyebrow{color:var(--dark-ink-3)}
+.live .eyebrow::before{background:var(--dark-accent)}
+.live .section-lead{color:var(--dark-ink-2)}
+.plan-frame{
+  position:relative;
+  max-width:1400px;
+  width:calc(100vw - 64px);   
+  margin-inline:auto;
+  margin-left:50%;
+  transform:translateX(-50%);
+}
+.plan-frame{
+  max-width:max(1080px, min(1400px, calc((100vh - 96px) * 1000 / 600)));
+}
+.plan-caption{
+  display:flex;align-items:baseline;gap:10px;margin-bottom:12px;
+  font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:11.5px;color:var(--dark-ink-3);letter-spacing:.06em;text-transform:uppercase;
+}
+.plan-caption .no{color:var(--dark-accent);font-weight:600}
+.live-plan-wrap{position:relative;border:1px solid var(--dark-line);background:#101216}
+.live-plan-wrap svg{width:100%;height:auto;display:block}
+#live-dots{position:absolute;inset:0}
+.spisok-priborov{
+  order:2;                       
+  columns:210px;
+  column-gap:18px;
+  margin-top:14px;
+  font-size:12.5px;
+}
+.spisok-priborov .stroka{break-inside:avoid}
+.spisok-priborov .stroka{
+  display:flex;align-items:baseline;gap:8px;
+  padding:4px 6px;border-radius:4px;cursor:pointer;
+  color:var(--dark-ink-2);
+  transition:background .15s ease-out,color .15s ease-out;
+}
+.spisok-priborov .stroka:hover,
+.spisok-priborov .stroka.podsvechena{
+  background:#171B21;color:var(--dark-ink);
+}
+.spisok-priborov .nom{
+  flex:0 0 auto;min-width:16px;text-align:right;
+  font-family:var(--mono);font-size:11px;color:var(--dark-ink-3);
+}
+.spisok-priborov .stroka.gorit .nom{color:var(--dark-ok)}
+.plan-frame{display:flex;flex-direction:column}
+.plan-caption{order:0}
+.live-plan-wrap{order:1}
+.live-dot{
+  position:absolute;width:20px;height:20px;margin-left:-10px;margin-top:-10px;
+  border-radius:50%;background:#1E2430;border:1.5px solid var(--dark-line);
+  display:flex;align-items:center;justify-content:center;font-size:10px;
+  color:var(--dark-ink-3);
+  transition:background .18s ease-out,border-color .18s ease-out,box-shadow .18s ease-out;
+}
+.live-dot.on{background:var(--dark-ok);border-color:var(--dark-ok);color:#0C1F16;
+  box-shadow:0 0 10px rgba(79,169,123,.6)}
+.live-dot.on.lamp{background:var(--dark-accent);border-color:var(--dark-accent);
+  color:#2A1A08;box-shadow:0 0 12px rgba(201,133,68,.7)}
+.live-dot.offline-fault{border-color:var(--dark-alarm);opacity:.5}
+.live-dot.alarm{background:var(--dark-alarm);border-color:var(--dark-alarm);
+  color:#fff;animation:alarm-pulse 1.2s ease-out infinite}
+@keyframes alarm-pulse{
+  0%{box-shadow:0 0 0 0 rgba(196,88,74,.55)}
+  100%{box-shadow:0 0 0 20px rgba(196,88,74,0)}
+}
+.live-dot.wave{border-color:#4DA3FF;color:#4DA3FF;
+  animation:wave-pulse 1.4s ease-out infinite}
+@keyframes wave-pulse{
+  0%{box-shadow:0 0 0 0 rgba(77,163,255,.45)}
+  100%{box-shadow:0 0 0 16px rgba(77,163,255,0)}
+}
+#plan-door-leaf{transform-origin:60px 445px;transition:transform .35s ease-out}
+#plan-door-arc{transition:opacity .35s ease-out}
+#plan-door.open #plan-door-leaf{transform:rotate(90deg)}
+#plan-door.open #plan-door-arc{opacity:.55}
+#live-plan [id^="glow-"]{
+  transition:opacity .6s ease-out, transform .6s ease-out, stroke .6s ease-out, fill .6s ease-out;
+}
+#live-plan [id^="pol-"]{transition:opacity .6s ease-out}
+.live-dot-label{
+  position:absolute;font-size:10px;color:var(--dark-ink-2);white-space:nowrap;
+  transform:translate(-50%,8px);pointer-events:none;
+}
+.live-dot-label.skrytaya{opacity:0}
+.live-dot-label.vspyhnula{
+  opacity:1;color:var(--dark-ink);font-weight:600;
+  transition:opacity .15s ease-out,color .15s ease-out;
+}
+.live-dot-label.srabotala{
+  opacity:1;color:var(--dark-accent);font-weight:600;
+  transition:opacity .15s ease-out,color .15s ease-out;
+}
+.live-dot-label.trevozhnaya{color:var(--dark-danger,#E2574C)}
+.live-dot.pokazan{box-shadow:0 0 0 3px var(--accent)}
+.live-dot.s-nomerom{font-family:var(--mono);font-size:10px;font-weight:600}
+.live-dot-label.lp-left{transform:translate(calc(-100% - 14px),-50%)}
+.live-dot-label.lp-right{transform:translate(14px,-50%)}
+.live-dot-label.lp-above{transform:translate(-50%,-26px)}
+.final{text-align:center;padding:104px 0;border-bottom:none}
+.final h2{margin:0 auto 16px;max-width:20ch}
+.final .section-lead{margin:0 auto 34px}
+.final .cta-row{justify-content:center}
+.final .eyebrow{justify-content:center}
+.contacts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:0;border-top:1px solid var(--line);max-width:820px;margin:0 auto;
+  text-align:left;
+}
+.contact{padding:26px 28px 26px 0;border-bottom:1px solid var(--line)}
+.contact + .contact{border-left:1px solid var(--line);padding-left:28px}
+.contact .label{
+  font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:8px;
+}
+.contact a,.contact .val{
+  font-size:17px;color:var(--ink);text-decoration:none;font-weight:500;
+  font-variant-numeric:tabular-nums;
+  border-bottom:1px solid var(--line-strong);
+  transition:color .16s ease-out,border-color .16s ease-out;
+}
+.contact a:hover{color:var(--accent);border-color:var(--accent)}
+.contact a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.contact .val{border-bottom:none}
+footer{
+  padding:32px 0 44px;color:var(--ink-3);font-size:13px;text-align:center;
+  background:var(--surface);border-top:1px solid var(--line);
+}
+@media (max-width:700px){
+  table.cmp.smeta{font-size:14px}
+  table.cmp.smeta th,table.cmp.smeta td{padding:12px 8px}
+  table.cmp.smeta td:first-child{width:auto}
+  table.cmp.smeta td:not(:first-child),
+  table.cmp.smeta thead th:not(:first-child){width:auto}
+  table.cmp.smeta{min-width:520px}
+  table.cmp.smeta .sub{font-size:12px}
+}
+@media (max-width:720px){
+  section,.live{padding:64px 0}
+  section.pause{padding:80px 0}
+  .arg{grid-template-columns:1fr;gap:12px}
+  .pain + .pain{border-left:none;padding-left:0}
+  .pain{padding-right:0}
+  table.cmp:not(.smeta){min-width:0}
+  table.cmp:not(.smeta) thead{display:none}
+  table.cmp:not(.smeta) tr{display:block;padding:14px 0;
+    border-bottom:1px solid var(--line)}
+  table.cmp:not(.smeta) tr:last-child{border-bottom:none}
+  table.cmp:not(.smeta) td{display:block;width:auto;padding:2px 0;
+    border:none}
+  table.cmp:not(.smeta) td:first-child{font-weight:600;color:var(--ink);
+    margin-bottom:6px;width:auto}
+  table.cmp:not(.smeta) td.them::before{content:'Коробочное: ';
+    color:var(--ink-3);font-size:13px}
+  table.cmp:not(.smeta) td.us::before{content:'У нас: ';
+    color:var(--accent);font-size:13px;font-weight:600}
+  .live-dot-label{display:none}
+  .live-dot{width:22px;height:22px;margin-left:-11px;margin-top:-11px;font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="wrap hero-inner">
+    <div class="eyebrow">Предустановка умного дома в новостройке</div>
+    <h1>Квартира, которая сама замечает протечку. И&nbsp;вычёркивает штробление из сметы.</h1>
+    <p class="lead">
+      Не «умный дом» из рекламы, а несколько вещей, которые снижают ваши
+      расходы: меньше штробления на отделке, меньше заявок в управляющую
+      компанию, гарантийный случай закрывается за час, а не за половину дня.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#arguments">Что это даёт вам</a>
+      <a class="btn btn-ghost" href="#live">Нажать сценарий на живом стенде</a>
+      <a class="btn btn-ghost" href="#honest">Что мы НЕ обещаем</a>
+    </div>
+  </div>
+</div>
+<section>
+  <div class="wrap">
+    <h2>Три вопроса, которые вы задаёте любому подрядчику</h2>
+    <p class="section-lead">
+      Отвечаем сразу, не дожидаясь встречи — потому что покупается
+      не техника, а спокойствие на объекте.
+    </p>
+    <div class="pains">
+      <div class="pain">
+        <div class="q">«Это ускорит продажи?»</div>
+        <div class="a">
+          На просмотре риелтору есть что показать за двадцать секунд —
+          и это запоминается лучше квадратных метров.
+        </div>
+      </div>
+      <div class="pain">
+        <div class="q">«А заявок в УК не прибавится?»</div>
+        <div class="a">
+          Наоборот. Протечку дом замечает сам и обесточивает
+          стиральную машину, а о сломанном датчике сообщает раньше,
+          чем случится авария.
+        </div>
+      </div>
+      <div class="pain">
+        <div class="q">«Вы не сорвёте сроки на 200 квартирах?»</div>
+        <div class="a">
+          Квартира описывается конфигурацией, а не собирается руками.
+          Двести квартир — одна конфигурация, а не двести настроек.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="arguments">
+  <div class="wrap">
+    <h2>Девять доводов, и первый — про деньги</h2>
+    <p class="section-lead">
+      Все остальные предложения на рынке только добавляют строки в
+      смету. Здесь первый же довод одну строку из неё вычёркивает.
+    </p>
+    <div class="args">
+<div class="arg">
+        <div class="num">01</div>
+        <div>
+          <h3>Под выключатели не надо штробить</h3>
+          <p>
+            Выключатели беспроводные — батарейная кнопка, которая клеится
+            на стену. Провод идёт только к светильнику.
+          </p>
+          <p>
+            Значит на отделке не нужны штробы под выключатели, кабель к
+            каждой точке и подрозетники под них.
+          </p>
+          <table class="calc">
+            <caption>Одна точка управления светом</caption>
+            <tr>
+              <th><span>Как строят сейчас</span></th>
+              <td class="sum">2&nbsp;330 &#8381;</td>
+            </tr>
+            <tr class="detail">
+              <td colspan="2">штроба 4&nbsp;м + подрозетник + кабель + выключатель + установка</td>
+            </tr>
+            <tr>
+              <th><span>С беспроводной кнопкой</span></th>
+              <td class="sum">1&nbsp;099 &#8381;</td>
+            </tr>
+            <tr class="detail">
+              <td colspan="2">кнопка 950&nbsp;&#8381; + наклеить на стену 149&nbsp;&#8381;</td>
+            </tr>
+            <tr class="total">
+              <th><span>Разница с точки</span></th>
+              <td class="sum">1&nbsp;231 &#8381;</td>
+            </tr>
+          </table>
+          <p>
+            В квартире таких точек шесть-восемь. Это <b>7&#8202;400&nbsp;&ndash;&nbsp;9&#8202;800&nbsp;&#8381;
+            на квартиру</b>, которых в смете просто нет.
+          </p>
+          <div class="note">
+            <b>Граница обещания.</b> Розетки и силовые линии не трогаем —
+            обычная проводка, всё по проекту: там нормы и безопасность.
+            Экономия касается только выключателей. Цифры — тюменские
+            расценки на монтаж и розница без опта; при закупке на объект
+            обе колонки ниже, разница сохранится.
+          </div>
+          <div class="why"><b>Вам:</b> живые деньги в смете на отделке, а не обещание удобства жильцу.</div>
+          <div class="why"><b>Покупателю:</b> выключатель не вмурован в стену — переклеить его к изголовью кровати можно без ремонта.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">02</div>
+        <div>
+          <h3>Гарантийный случай — час вместо половины дня</h3>
+          <p>
+            Вся управляющая электроника стоит в одном ящике: контроллер,
+            реле, хаб, блоки питания. В потолке остаются только светодиоды,
+            а они переживают всё остальное.
+          </p>
+          <p>
+            Сгорело реле — открыли ящик, заменили за минуту. Не снимая
+            люстру, не разбирая натяжной потолок, не вызывая второго человека.
+          </p>
+          <div class="why"><b>Вам:</b> стоимость гарантийного выезда падает, а на объекте в 200 квартир это накапливается.</div>
+          <div class="why"><b>Покупателю:</b> ремонт — час без пыли, снятой люстры и разобранного натяжного потолка в его квартире.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">03</div>
+        <div>
+          <h3>Работает без интернета</h3>
+          <p>
+            Сценарии живут в самой квартире, а не в облаке. Пропал
+            интернет — «протечка → обесточить и сообщить» всё равно отработает.
+          </p>
+          <p>
+            У коробочных решений на голосовых помощниках всё наоборот:
+            нет связи с облаком — нет автоматики.
+          </p>
+          <div class="why"><b>Вам:</b> для протечки это разница между «сработало» и «залил соседей снизу».</div>
+          <div class="why"><b>Покупателю:</b> защита квартиры не зависит от тарифа, роутера и чужого сервера.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">04</div>
+        <div>
+          <h3>Система сама замечает сломанный датчик</h3>
+          <p>
+            Молчащий датчик выглядит точно так же, как исправный: тишина.
+            Человек узнаёт правду в тот день, когда его заливает — и звонит
+            вам, потому что квартира на гарантии.
+          </p>
+          <p>
+            Здесь система следит за самими датчиками и сообщает, что один
+            замолчал — до аварии, а не после.
+          </p>
+          <div class="why"><b>Вам:</b> претензия не превращается в залитых соседей и разбирательство.</div>
+          <div class="why"><b>Покупателю:</b> о проблеме он узнаёт от системы заранее, а не от соседей снизу постфактум.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">05</div>
+        <div>
+          <h3>Покупатель видит подход — и голосует за него</h3>
+          <p>
+            Четыре довода выше — про ваши издержки. Этот — про продажи.
+            Квартира, которая сама замечает протечку и не отдаёт
+            данные семьи в чужое облако, — история, которую покупатель
+            пересказывает знакомым, когда те выбирают новостройку.
+          </p>
+          <p>
+            Современный покупатель такое считывает быстро: застройщик
+            подумал о жизни в квартире после ключей, а не только до
+            подписания акта. Квартира отличается от соседних новостроек
+            прямо на просмотре, а не строчкой в буклете.
+          </p>
+          <div class="why"><b>Вам:</b> аргумент продажи и рекомендаций, а не только строка экономии в смете.</div>
+        </div>
+      </div>
+      <div class="args-razdel">Дальше — не про смету, а про то, как система устроена</div>
+<div class="arg">
+        <div class="num">06</div>
+        <div>
+          <h3>Дом не гасит свет там, где ещё сидят люди</h3>
+          <p>
+            Семья ужинает на кухне. Один говорит «включи кино» — и в
+            коробочном решении свет на кухне гаснет под остальными.
+            Формально команда выполнена, по-человечески — глупость.
+          </p>
+          <p>
+            У нас на это две разные команды. «Кино» — когда вышел
+            последним и на кухне никого. «Смотрю телевизор» — когда там
+            остались люди: гостиная приглушается, телевизор включается,
+            кухня не трогается вовсе. Так же с «Читаю в спальне»:
+            зажигается лампа у кровати, остальная квартира живёт своей
+            жизнью.
+          </p>
+          <div class="note">
+            <b>Почему не «пусть дом сам сообразит».</b> Дом не знает, кто
+            на кухне: свет там может гореть по забывчивости, а может при
+            живых людях. Различить нечем, а гадать — значит иногда
+            ошибаться и всегда быть непредсказуемым. Человек знает: он
+            только что оттуда вышел. Наше дело — дать ему сказать, а не
+            угадать за него.
+          </div>
+          <div class="why"><b>Вам:</b> меньше всего жалоб приносит
+            предсказуемая система, а не сообразительная.</div>
+          <div class="why"><b>Покупателю:</b> это как выключить за собой
+            лампочку на кухне, где ещё сидят. Так люди не делают — и дом
+            не должен.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">07</div>
+        <div>
+          <h3>Дом реагирует на условия, а не только на команды</h3>
+          <p>
+            Вытяжка включается, когда влажность поднялась, и выключается,
+            когда упала — человек ничего не нажимает. Свет в санузле
+            ночью зажигается вполсилы, а днём на полную. Ночник в
+            коридоре загорается от движения только в тёмное время.
+          </p>
+          <div class="why"><b>Вам:</b> это и есть разница между «умный»
+            и «управляемый с телефона».</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">08</div>
+        <div>
+          <h3>Данные квартиры остаются в квартире</h3>
+          <p>
+            Когда человек ушёл, когда вернулся, когда спит, сколько
+            потребляет — всё это хранится на устройстве в квартире и
+            никуда не отправляется. Не потому что мы обещаем не
+            смотреть, а потому что отправлять некуда: облака в схеме нет.
+          </p>
+          <p>
+            У облачных систем эти же данные — когда квартира пустая,
+            когда все спят, кто когда пришёл — лежат на серверах
+            корпорации и живут по её правилам, которые она вправе
+            поменять в любой день. Многим покупателям это не нравится,
+            и спорить с ними не нужно: здесь этим данным физически
+            некуда уходить.
+          </p>
+          <div class="why"><b>Вам:</b> вопрос «а кто это видит» снимается
+            технически, а не обещанием.</div>
+          <div class="why"><b>Покупателю:</b> расписание жизни его семьи
+            не принадлежит никакой корпорации — оно не покидает квартиру.</div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">09</div>
+        <div>
+          <h3>Алиса остаётся — просто перестаёт быть мозгом</h3>
+          <p>
+            Жильцу не надо ничего переучивать. Колонка стоит там же,
+            команды те же: «Алиса, включи кинотеатр» — и запускается
+            наш сценарий, со всеми четырьмя действиями сразу, а не
+            одна лампочка.
+          </p>
+          <p>
+            Меняется только то, где принимается решение. Алиса — рот и
+            уши, а думает квартира. Поэтому сценарий с гашением света,
+            подсветкой и вытяжкой по влажности возможен: колонка на
+            такое не способна, а дом способен.
+          </p>
+          <div class="why"><b>Вам:</b> не надо убеждать покупателя
+            отказаться от привычного. Он ничего не теряет, а получает
+            то, чего у колонки нет.</div>
+          <p>
+            Связка проверена, а не обещана: команда из приложения
+            Яндекса доходит до системы и запускает сценарий целиком —
+            все четыре действия сразу.
+          </p>
+          <div class="note">
+            <b>Честно про интернет.</b> Голос через колонку ходит
+            через интернет — это сторона Яндекса, и без связи она
+            замолчит. Автоматика при этом продолжает работать:
+            протечка, вытяжка, ночной свет от интернета не зависят.
+            Подробнее — <a href="#voice">в разделе про голос</a>: там
+            и про сценарии под жильца, и про распознавание без облака.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="smeta">
+  <div class="wrap">
+    <h2>Сколько стоит оборудование</h2>
+    <p class="section-lead">
+      Без «рассчитаем индивидуально». Вот состав и порядок цен —
+      проверьте любую строку. Монтаж и настройка считаются отдельно:
+      на объекте цена за квартиру заметно ниже, чем на одной.
+    </p>
+    <div class="cmp-wrap">
+      <table class="cmp smeta">
+        <thead>
+          <tr><th>Что стоит в квартире</th><th>Базовый</th><th>Безопасность</th><th>Полный</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Контроллер — мозг системы<span class="sub">базовая плата; мини-ПК&nbsp;— 17&nbsp;700<sup>*</sup>, опция на вырост</span></td><td>9&nbsp;300</td><td>9&nbsp;300</td><td>9&nbsp;300</td></tr>
+          <tr><td>Радиомодуль для датчиков<span class="sub">Zigbee, свой в каждой квартире</span></td><td>1&nbsp;700</td><td>1&nbsp;700</td><td>1&nbsp;700</td></tr>
+          <tr><td>Реле на четыре группы света<span class="sub">один модуль на всю квартиру</span></td><td>1&nbsp;400</td><td>1&nbsp;400</td><td>1&nbsp;400</td></tr>
+          <tr><td>Беспроводные выключатели, 6 шт.<span class="sub">те самые, под которые не штробят; 950&nbsp;&#8381; за штуку, монтаж — наклеить на стену</span></td><td>5&nbsp;700</td><td>5&nbsp;700</td><td>5&nbsp;700</td></tr>
+          <tr><td>Датчики протечки, 2 шт.<span class="sub">санузел и кухня</span></td><td>2&nbsp;700</td><td>2&nbsp;700</td><td>2&nbsp;700</td></tr>
+          <tr><td>Датчик дыма<span class="sub">сертифицирован EN14604; включает свет по всей квартире и вытяжку</span></td><td class="dash">—</td><td>1&nbsp;500</td><td>1&nbsp;500</td></tr>
+          <tr><td>Кнопка помощи в санузле<span class="sub">та же беспроводная кнопка; долгое нажатие — свет и уведомление близким</span></td><td class="dash">—</td><td>950</td><td>950</td></tr>
+          <tr><td>Датчик движения</td><td class="dash">—</td><td class="dash">—</td><td>1&nbsp;900</td></tr>
+          <tr><td>Датчик открытия входной двери</td><td class="dash">—</td><td class="dash">—</td><td>1&nbsp;000</td></tr>
+          <tr><td>Датчики температуры и влажности, 2 шт.</td><td class="dash">—</td><td class="dash">—</td><td>1&nbsp;200</td></tr>
+          <tr><td>Умная розетка с замером<span class="sub">видит, что стирка закончилась</span></td><td class="dash">—</td><td class="dash">—</td><td>2&nbsp;300</td></tr>
+          <tr><td>ИК-пульт<span class="sub">кондиционер и телевизор, которые уже стоят</span></td><td class="dash">—</td><td class="dash">—</td><td>1&nbsp;200</td></tr>
+          <tr class="row-total"><td><b>Оборудование</b></td><td><b>20&nbsp;800</b></td><td><b>23&nbsp;250</b></td><td><b>30&nbsp;850</b></td></tr>
+          <tr class="row-minus"><td>Минус несделанная электрика<span class="sub">штробы, кабель и подрозетники под выключатели</span></td><td>−14&nbsp;000</td><td>−14&nbsp;000</td><td>−14&nbsp;000</td></tr>
+          <tr class="row-final"><td><b>Разница для сметы</b></td><td><b>6&nbsp;800</b></td><td><b>9&nbsp;250</b></td><td><b>16&nbsp;850</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <sup>*</sup> <b>Мини-ПК — опция, а не необходимость.</b> Во всех
+      колонках стоит базовая плата: её хватает всему набору датчиков и
+      всем 55 сценариям. Мини-ПК за 17&nbsp;700 берут не потому, что
+      система требует, а за запас на годы вперёд — если он нужен,
+      прибавьте к любой колонке 8&nbsp;400&nbsp;&#8381;.
+    </div>
+    <div class="note">
+      <b>Цены ориентировочные.</b> Это розница на день расчёта, без опта —
+      приведена, чтобы вы могли проверить порядок сумм сами, а не поверить
+      на слово. Оборудование дешевеет и дорожает, состав подбирается под
+      планировку, а при закупке партией на объект цифры будут заметно
+      ниже. Точный расчёт — под конкретный дом.
+    </div>
+    <div class="note">
+      <b>Если в квартирах уже стоят датчики.</b> Zigbee-датчики
+      распространённых марок подключаются к нашему контроллеру напрямую
+      и продолжают работать — менять их не нужно, из сметы уходит вся
+      нижняя половина. Остаётся контроллер с радиомодулем и реле.
+    </div>
+    <div class="why" style="margin-top:22px">
+      <b>Вам:</b> от 7 до 17 тысяч на квартиру сверх обычной
+      отделки — за систему, которая работает без интернета и сама
+      сообщает о протечке.
+    </div>
+    <div class="why">
+      <b>Покупателю:</b> система уже стоит и работает в день выдачи
+      ключей — ничего не докупать, не тянуть провода после ремонта
+      и не настраивать.
+    </div>
+  </div>
+</section>
+<section id="umeet">
+  <div class="wrap">
+    <h2>Что именно получает квартира</h2>
+    <p class="section-lead">
+      Пять вещей, которых нет у коробочного решения ни за какие
+      деньги, — они следуют из того, что система живёт в квартире.
+    </p>
+    <div class="args">
+<div class="arg">
+        <div class="num">01</div>
+        <div>
+          <h3>Одна команда — много действий сразу</h3>
+          <p>
+            Сценарий «Кино»: основной свет гаснет, подсветка уходит на 15%,
+            мягкая лента по периметру остаётся, а телевизору уходит
+            команда по ИК — как с обычного пульта. Одно нажатие — и
+            каждый светильник делает своё, с разной яркостью.
+          </p>
+          <p>
+            В коробочных решениях команда обычно управляет одним
+            устройством: «включи свет», «выключи свет».
+          </p>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">02</div>
+        <div>
+          <h3>55 сценариев, и у каждого удобства — свой выключатель</h3>
+          <p>
+            Не «мы поставим вам автоматику», а каталог. Не нравится, что
+            дом гасит забытый свет, — снял галочку, остальное работает.
+            Без выключателя только аварийные сценарии вроде протечки:
+            защиту не отключают случайным нажатием.
+          </p>
+          <div class="note">
+            <b>Человек главнее автоматики.</b> Если жилец тронул свет
+            рукой, автоматика отступает на час и не спорит с ним. Без
+            этого правила умный дом начинают ненавидеть на второй неделе.
+          </div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">03</div>
+        <div>
+          <h3>Жилец может дописать своё, не ломая наше</h3>
+          <p>
+            В системе тринадцать событий, к которым жилец или его
+            мастер подцепляет свою автоматику: «дома никого нет»,
+            «протечка», «стирка закончилась», «вернулись домой».
+          </p>
+          <p>
+            Обновление типового набора не затирает то, что дописал жилец.
+          </p>
+          <div class="note">
+            <b>Граница ответственности.</b> Пока квартира работает на
+            наших настройках, за её поведение отвечаем мы. Если жилец
+            заменил их своими — отвечает за них сам, как с любой
+            техникой, в которую вмешались. Это оговаривается заранее,
+            при передаче квартиры, а вернуться к нашим настройкам
+            можно в любой момент.
+          </div>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">04</div>
+        <div>
+          <h3>Полноценная панель управления, а не четыре плитки</h3>
+          <p>
+            У жильца полный доступ к системе: история по каждому датчику,
+            графики температуры и влажности, расход электричества,
+            любые экраны под себя. Хочет видеть только три кнопки —
+            будет три кнопки; хочет графики — будут графики.
+          </p>
+        </div>
+      </div>
+<div class="arg">
+        <div class="num">05</div>
+        <div>
+          <h3>Уведомления туда, куда человеку удобно</h3>
+          <p>
+            Протечка, забытый утюг, севшая батарейка — сообщение уходит
+            в мессенджер, СМС или звонком, а не только в приложение,
+            которое жилец не открывает.
+          </p>
+          <div class="note">
+            <b>Честно:</b> на стенде уведомления показываются в самой
+            системе. Каналы связи подключаются при установке на объект —
+            платформа их поддерживает, но на демонстрации вы этого не
+            увидите.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="soft">
+  <div class="wrap">
+    <h2>Чем это отличается от коробочного решения</h2>
+    <p class="section-lead">
+      Речь не о том, что голосовой помощник плохой. Речь о том, где
+      принимаются решения — в квартире или в чужом облаке.
+    </p>
+    <div class="cmp-wrap">
+      <table class="cmp">
+        <thead>
+          <tr><th></th><th>Коробочное решение</th><th>Наше</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Пропал интернет</td>
+            <td class="them">Автоматика не работает</td>
+            <td class="us">Сценарии продолжают работать</td>
+          </tr>
+          <tr>
+            <td>Поставщик изменил условия</td>
+            <td class="them">Дом жильца зависит от чужих решений</td>
+            <td class="us">Ничего не меняется, всё локальное</td>
+          </tr>
+          <tr>
+            <td>Датчик замолчал</td>
+            <td class="them">Никто не заметит</td>
+            <td class="us">Система сообщит до аварии</td>
+          </tr>
+          <tr>
+            <td>Жилец хочет свой сценарий</td>
+            <td class="them">Что дали в приложении, то и есть</td>
+            <td class="us">Дорабатывается под запрос</td>
+          </tr>
+          <tr>
+            <td>Условия и пороги</td>
+            <td class="them">Расписание и голос</td>
+            <td class="us">Вытяжка по влажности, свет по освещённости,
+              разное поведение днём и ночью</td>
+          </tr>
+          <tr>
+            <td>Готовых сценариев</td>
+            <td class="them">Набор из приложения</td>
+            <td class="us">55 написано и проверено прогоном; каждый
+              включается и выключается жильцом отдельно</td>
+          </tr>
+          <tr>
+            <td>Куда уходят данные квартиры</td>
+            <td class="them">На серверы поставщика</td>
+            <td class="us">Никуда. Остаются в квартире</td>
+          </tr>
+          <tr>
+            <td>Голосовое управление</td>
+            <td class="them">Своя колонка, свои правила</td>
+            <td class="us">Привычная колонка остаётся — голосом, но
+              сценарий выполняет квартира</td>
+          </tr>
+          <tr>
+            <td>Установка на 200 квартир</td>
+            <td class="them">Настройка каждой руками</td>
+            <td class="us">Одна конфигурация на объект</td>
+          </tr>
+          <tr>
+            <td>Заработало из коробки<span class="sub">здесь впереди коробочное</span></td>
+            <td class="them">Воткнул в розетку — и говорит через минуту</td>
+            <td class="us">Ставит и настраивает специалист — жильцу достаётся уже готовое</td>
+          </tr>
+          <tr>
+            <td>Вид мобильного приложения<span class="sub">здесь впереди коробочное</span></td>
+            <td class="them">Фирменное, глянцевое, из магазина приложений</td>
+            <td class="us">Приложение платформы: умеет больше, выглядит скромнее</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>Две последние строки мы проигрываем — и оставили их сознательно.</b>
+      Коробочное решение быстрее стартует и наряднее выглядит в телефоне.
+      Этот глянец мы меняем на верхние строки таблицы: работу без
+      интернета, датчики под присмотром и данные, которые не покидают
+      квартиру.
+    </div>
+  </div>
+</section>
+<section id="platform">
+  <div class="wrap">
+    <h2>На чём это сделано</h2>
+    <div class="honest narrow">
+      <p>
+        Внутри — <b>Home Assistant</b>: открытая платформа умного дома,
+        которая развивается больше десяти лет, живёт на миллионах
+        домов по миру и не принадлежит ни нам, ни поставщику облака.
+        Проверяется одним запросом в поиске.
+      </p>
+      <p>
+        <b>Вы не привязаны к одному подрядчику.</b> Конфигурация
+        квартиры — обычные файлы, они остаются у вас. Специалистов по
+        платформе много: если завтра нас не станет, система продолжит
+        работать, а поддержку подхватит другой инженер.
+      </p>
+      <p>
+        Наша работа — то, чего у платформы из коробки нет: каталог
+        сценариев на человеческом языке, упаковка для жильца и
+        механизм установки одной конфигурации на весь объект.
+      </p>
+    </div>
+  </div>
+</section>
+<section id="rastet">
+  <div class="wrap">
+    <h2>Дом, который потом достраивают</h2>
+    <p class="section-lead">
+      Вы ставите основу. Дальше жилец добавляет то, что нужно именно
+      ему, — и оно начинает работать вместе с тем, что уже стоит.
+    </p>
+    <div class="args">
+      <div class="arg">
+        <div class="num">01</div>
+        <div>
+          <h3>Протечка, когда хозяин в отпуске</h3>
+          <p>
+            Датчик под мойкой заметил воду: розетка обесточена, свет
+            включён, сообщение ушло хозяину.
+          </p>
+          <p>
+            Дальше он звонит товарищу и выдаёт ему код, который
+            действует только сегодня. Товарищ вошёл, перекрыл воду,
+            ушёл. Ключа у него не осталось, постоянного доступа в
+            квартиру он не получил.
+          </p>
+          <div class="why"><b>Покупателю:</b> залитые соседи — это
+            ремонт у двоих и разбирательство на год. Здесь он решается
+            из другой страны.</div>
+        </div>
+      </div>
+      <div class="arg">
+        <div class="num">02</div>
+        <div>
+          <h3>Квартира под посуточную аренду</h3>
+          <p>
+            Постоялец приезжает ночью, хозяин в другом городе. Код
+            действует с заезда до выезда и гаснет сам: ключи не
+            передаются, дубликаты не делаются, замок не меняется после
+            каждого жильца.
+          </p>
+          <p>
+            К заезду включается свет, после выезда квартира сама гасит
+            забытое, а протечка не превращается в залитых соседей, пока
+            никого нет.
+          </p>
+          <div class="why"><b>Вам:</b> часть покупателей берёт квартиру
+            как вложение. Для них это не удобство, а деньги — не нужен
+            человек на встречах.</div>
+        </div>
+      </div>
+      <div class="arg">
+        <div class="num">03</div>
+        <div>
+          <h3>Устройства от разных производителей — в одной системе</h3>
+          <p>
+            Датчик протечки, замок, кран с приводом, датчик дыма могут
+            быть разных марок. Их связывает не общий бренд и не общее
+            приложение, а система в квартире.
+          </p>
+          <p>
+            Поэтому жильцу не нужно выбирать экосистему на десять лет
+            вперёд и покупать всё у одного поставщика.
+          </p>
+          <div class="why"><b>Покупателю:</b> квартира не устаревает
+            через два года — он покупает не набор, а основу.</div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <b>Граница обещания.</b> Выдача временных кодов работает не с
+      любым замком: у части марок коды заводятся только через
+      фирменное приложение. Подходящие модели называем при подборе, а
+      где кодов нет — дверь открывается с телефона: созвонились и
+      открыли, или заранее к назначенному времени.
+    </div>
+  </div>
+</section>
+<section id="domofon">
+  <div class="wrap">
+    <h2>Домофон тоже можно связать со сценариями</h2>
+    <p class="section-lead">
+      Звонок в дверь — обычное событие, и квартира может на него
+      реагировать.
+    </p>
+    <div class="proza">
+      <p>
+        Позвонили, пока смотрят кино, — телевизор встаёт на паузу, в
+        прихожей загорается свет: человек не ищет пульт и не идёт к
+        двери в темноте. Позвонили, когда дома никого нет, —
+        уведомление уходит на телефон, а по вечерам, пока хозяева в
+        отъезде, квартира сама зажигает свет в разных комнатах, и
+        снаружи выглядит так, будто дома живут. Вернулись поздно —
+        открытая дверь включает приглушённый свет по пути от
+        прихожей, а не полную яркость посреди ночи.
+      </p>
+      <p class="usloviye">
+        <b>Что для этого нужно.</b></b> Чтобы домофон умел сообщать о вызове
+      наружу — современные это умеют. Оборудование при этом остаётся
+      прежним.
+      </p>
+    </div>
+  </div>
+</section>
+<section class="pause" id="honest">
+  <div class="wrap">
+    <h2>Что мы не обещаем</h2>
+    <p class="section-lead">
+      Раздел, которого обычно нет в предложениях. Он здесь, потому что
+      на объекте всё равно выяснится — лучше сразу.
+    </p>
+    <div class="honest narrow">
+      <p>
+        <b>Мы не переделываем электрику.</b> Розетки и силовые линии — по
+        проекту. Экономия только на выключателях.
+      </p>
+      <p>
+        <b>Обычная техника не становится умной.</b> Розетка умеет подать
+        и снять питание, не более. Стиральную машину мы не запустим —
+        кнопку «Старт» нажимает человек. Мы лишь видим по потреблению,
+        что цикл закончился.
+      </p>
+      <p>
+        <b>Радиосвязь надо проверять на объекте.</b> Как беспроводные
+        датчики добивают через ваши несущие стены, заранее не скажет
+        никто честный. Это проверяется на пилотной квартире.
+      </p>
+      <p>
+        Поэтому и предложение простое: <b>дайте одну квартиру</b>. Соберём,
+        посмотрите на заявки и на отклик покупателей. Не понравится —
+        вы ничего не потеряли.
+      </p>
+    </div>
+  </div>
+</section>
+<section class="live" id="live">
+  <div class="wrap">
+    <div class="eyebrow">Сценарии — вживую</div>
+    <h2>Нажмите сценарий — и смотрите на план</h2>
+    <p class="section-lead">
+      Ниже — план квартиры и все её устройства. Нажимаете вы —
+      отвечает система: свет заливает комнаты, датчики срабатывают,
+      под кнопками печатается, что именно произошло.
+    </p>
+    <div class="play">
+      <div class="play-head">
+        <b>Нажмите — и смотрите, что изменится</b>
+        Семь сценариев на одних и тех же лампах. Нажмите «Ужин»,
+        потом «Чтение» — светильники те же, а квартира совершенно
+        разная. В этом и весь сценарий: одна команда, несколько
+        действий с разной яркостью.
+      </div>
+      <div class="play-btns">
+        <button class="btn btn-primary" data-scene="uzhin">Ужин</button>
+        <button class="btn btn-ghost" data-scene="kino">Кино</button>
+        <button class="btn btn-ghost" data-scene="chtenie">Чтение</button>
+        <button class="btn btn-ghost" data-scene="noch">Ночь</button>
+        <button class="btn btn-ghost" data-scene="dobroe_utro">Доброе утро</button>
+        <button class="btn btn-ghost" data-scene="gosti">Гости</button>
+        <button class="btn btn-ghost" data-scene="vse_vykliuchit">Всё выключить</button>
+      </div>
+      <div id="play-log" class="play-log" aria-live="polite">
+        <div class="play-hint">Здесь появится протокол: что включилось,
+          что погасло и с какой яркостью.</div>
+      </div>
+    </div>
+    <div class="play play-auto">
+      <div class="play-head">
+        <b>А эти два сценария не запускает никто — дом срабатывает сам</b>
+        Сценарий выше ждёт команды человека. Эти два следят за датчиками:
+        дом сам замечает, что влажность дошла до порога или что открылась
+        входная дверь. Кнопка ниже — не команда, она проигрывает процесс
+        по шагам, с настоящими порогами и яркостями из настройки квартиры.
+      </div>
+      <div class="play-btns">
+        <button class="btn btn-ghost" data-process="shower">Кто-то принимает душ</button>
+        <button class="btn btn-ghost" data-process="arrival">Кто-то пришёл домой</button>
+      </div>
+      <div id="auto-log" class="play-log" aria-live="polite">
+        <div class="play-hint">Здесь пойдёт процесс по шагам: влажность
+          растёт на глазах — и в нужный момент дом действует сам.</div>
+      </div>
+    </div>
+    <div class="plan-frame">
+      <div class="plan-caption"><span class="no">Рис. 01</span> План квартиры · состояние устройств</div>
+      <div id="spisok-priborov" class="spisok-priborov" aria-label="Приборы на плане"></div>
+      <div class="live-plan-wrap">
+<svg id="live-plan" viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg"
+             font-family="'JetBrains Mono',ui-monospace,Consolas,monospace">
+          <defs>
+            <radialGradient id="warm-light">
+              <stop offset="0%" stop-color="#FFDCA6" stop-opacity=".92"/>
+              <stop offset="45%" stop-color="#F0A85A" stop-opacity=".44"/>
+              <stop offset="100%" stop-color="#E89A4C" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="work-light">
+              <stop offset="0%" stop-color="#FFF1DC" stop-opacity=".92"/>
+              <stop offset="45%" stop-color="#F2BE86" stop-opacity=".44"/>
+              <stop offset="100%" stop-color="#E8A85C" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="night-light">
+              <stop offset="0%" stop-color="#E8A05A" stop-opacity=".85"/>
+              <stop offset="50%" stop-color="#D9782F" stop-opacity=".38"/>
+              <stop offset="100%" stop-color="#C9601F" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="polosa-svet" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F0B06A" stop-opacity="0"/>
+              <stop offset="45%" stop-color="#FFDCA6" stop-opacity=".85"/>
+              <stop offset="100%" stop-color="#F0B06A" stop-opacity="0"/>
+            </linearGradient>
+            <clipPath id="flat-clip"><rect x="60" y="60" width="880" height="480"/></clipPath>
+            <clipPath id="clip-sanuzel"><rect x="60" y="60" width="240" height="170"/></clipPath>
+            <clipPath id="clip-prihozhaya"><rect x="60" y="230" width="240" height="310"/></clipPath>
+            <clipPath id="clip-kuhnya"><rect x="300" y="60" width="340" height="190"/></clipPath>
+            <clipPath id="clip-gostinaya"><rect x="300" y="250" width="340" height="290"/></clipPath>
+            <clipPath id="clip-spalnya"><rect x="640" y="60" width="300" height="480"/></clipPath>
+          </defs>
+          <rect x="0" y="0" width="1000" height="600" fill="#101216"/>
+          <g>
+            <rect x="60"  y="60"  width="240" height="170" fill="#2F7D57" opacity=".06"/>
+            <rect x="60"  y="230" width="240" height="310" fill="#5A6270" opacity=".06"/>
+            <rect x="300" y="60"  width="340" height="190" fill="#B07A2B" opacity=".05"/>
+            <rect x="300" y="250" width="340" height="290" fill="#8A5A2B" opacity=".05"/>
+            <rect x="640" y="60"  width="300" height="480" fill="#4A5A8A" opacity=".06"/>
+          </g>
+          <g>
+          <g transform="translate(145 108)"><rect x="-75" y="-38" width="150" height="76" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><rect x="-66" y="-28.88" width="132" height="57.76" rx="9.12" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="-54" cy="0" r="4.18" fill="none" stroke="#7E858E" stroke-width="1.5"/></g>
+          <g transform="translate(258 105)"><rect x="-30" y="-31" width="60" height="62" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-26.4" y1="-19.84" x2="26.4" y2="-19.84" stroke="#7E858E" stroke-width="1.5" opacity="0.7"/><circle cx="0" cy="3.72" r="18" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="-20.4" cy="-25.42" r="2.7" fill="none" stroke="#7E858E" stroke-width="1.5"/></g>
+          <g transform="translate(104 189) rotate(180)"><rect x="-24" y="-34" width="48" height="68" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><rect x="-19.2" y="-34" width="38.4" height="14.96" rx="3" fill="none" stroke="#7E858E" stroke-width="2"/><ellipse cx="0" cy="12.24" rx="16.32" ry="20.4" fill="none" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(172 199) rotate(180)"><rect x="-32" y="-24" width="64" height="48" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><rect x="-24.32" y="-15.36" width="48.64" height="24" rx="4" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="0" cy="-19.2" r="2.4" fill="none" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(125 310) rotate(90)"><rect x="-60" y="-27.5" width="120" height="55" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="0" y1="-27.5" x2="0" y2="27.5" stroke="#7E858E" stroke-width="2"/><line x1="-7.2" y1="-5.5" x2="-7.2" y2="5.5" stroke="#7E858E" stroke-width="2"/><line x1="7.2" y1="-5.5" x2="7.2" y2="5.5" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(340 100)"><rect x="-30" y="-30" width="60" height="60" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><rect x="-24" y="-15.6" width="48" height="37.2" rx="3" fill="none" stroke="#7E858E" stroke-width="1.5" opacity="0.8"/><line x1="-26.4" y1="22.8" x2="26.4" y2="22.8" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(402 94)"><rect x="-32" y="-24" width="64" height="48" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><rect x="-24.32" y="-15.36" width="48.64" height="24" rx="4" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="0" cy="-19.2" r="2.4" fill="none" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(466 102)"><rect x="-32" y="-32" width="64" height="64" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><circle cx="-14.08" cy="-14.08" r="10.24" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="14.08" cy="-14.08" r="10.24" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="-14.08" cy="14.08" r="10.24" fill="none" stroke="#7E858E" stroke-width="2"/><circle cx="14.08" cy="14.08" r="10.24" fill="none" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(530 102)"><rect x="-30" y="-32" width="60" height="64" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-30" y1="-6.4" x2="30" y2="-6.4" stroke="#7E858E" stroke-width="2"/><line x1="20.4" y1="-24.32" x2="20.4" y2="-12.8" stroke="#7E858E" stroke-width="2"/><line x1="20.4" y1="0" x2="20.4" y2="21.76" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(450 225)"><rect x="-60" y="-40" width="120" height="80" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(368 225) rotate(270)"><rect x="-22" y="-22" width="44" height="44" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-22" y1="-12.32" x2="22" y2="-12.32" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(532 225) rotate(90)"><rect x="-22" y="-22" width="44" height="44" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-22" y1="-12.32" x2="22" y2="-12.32" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(470 380)"><rect x="-90" y="-60" width="180" height="120" rx="14.4" fill="#7E858E" fill-opacity="0.08" stroke="#7E858E" stroke-width="2" stroke-dasharray="9.6 6"/><rect x="-72" y="-48" width="144" height="96" rx="9.6" fill="none" stroke="#7E858E" stroke-width="1.5" opacity="0.6"/></g>
+          <g transform="translate(470 297)"><rect x="-60" y="-17.5" width="120" height="35" rx="1.75" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(470 291)"><rect x="-55" y="-9" width="110" height="18" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-19.8" y1="9" x2="19.8" y2="27" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(470 497) rotate(180)"><rect x="-85" y="-36" width="170" height="72" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-85" y1="-14.4" x2="85" y2="-14.4" stroke="#7E858E" stroke-width="2"/><line x1="-64.6" y1="-14.4" x2="-64.6" y2="36" stroke="#7E858E" stroke-width="2"/><line x1="64.6" y1="-14.4" x2="64.6" y2="36" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(790 175)"><rect x="-75" y="-100" width="150" height="200" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="-75" y1="-48" x2="75" y2="-48" stroke="#7E858E" stroke-width="2"/><rect x="-60" y="-88" width="51" height="28" rx="3" fill="none" stroke="#7E858E" stroke-width="1.5"/><rect x="9" y="-88" width="51" height="28" rx="3" fill="none" stroke="#7E858E" stroke-width="1.5"/></g>
+          <g transform="translate(688 95)"><rect x="-22.5" y="-20" width="45" height="40" rx="2" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(892 95)"><rect x="-22.5" y="-20" width="45" height="40" rx="2" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/></g>
+          <g transform="translate(850 505)"><rect x="-60" y="-27.5" width="120" height="55" rx="4" fill="#7E858E" fill-opacity="0.12" stroke="#7E858E" stroke-width="2"/><line x1="0" y1="-27.5" x2="0" y2="27.5" stroke="#7E858E" stroke-width="2"/><line x1="-7.2" y1="-5.5" x2="-7.2" y2="5.5" stroke="#7E858E" stroke-width="2"/><line x1="7.2" y1="-5.5" x2="7.2" y2="5.5" stroke="#7E858E" stroke-width="2"/></g>
+          </g>
+          <g style="mix-blend-mode:screen">
+            <rect id="pol-sanuzel" x="60" y="60" width="240" height="170" fill="#C98544" opacity="0"/>
+            <rect id="pol-prihozhaya" x="60" y="230" width="240" height="310" fill="#C98544" opacity="0"/>
+            <rect id="pol-kuhnya" x="300" y="60" width="340" height="190" fill="#C98544" opacity="0"/>
+            <rect id="pol-gostinaya" x="300" y="250" width="340" height="290" fill="#C98544" opacity="0"/>
+            <rect id="pol-spalnya" x="640" y="60" width="300" height="480" fill="#C98544" opacity="0"/>
+          </g>
+          <g style="mix-blend-mode:screen">
+            <g clip-path="url(#clip-kuhnya)">
+              <circle id="glow-kitchen_light" cx="475" cy="140" r="150" fill="url(#work-light)" opacity="0"/>
+              <rect id="glow-kitchen_strip" x="305" y="58" width="330" height="56"
+                    fill="url(#polosa-svet)" opacity="0"/>
+            </g>
+            <g clip-path="url(#clip-gostinaya)">
+              <circle id="glow-living_room_main_light" cx="475" cy="360" r="165" fill="url(#warm-light)" opacity="0"/>
+              <rect id="glow-living_room_strip" x="322" y="272" width="296" height="246" rx="16"
+                    fill="none" stroke="#F0B06A" stroke-width="18" stroke-opacity=".30" opacity="0"/>
+              <ellipse id="glow-living_room_accent_light" cx="566" cy="490" rx="120" ry="48"
+                       fill="url(#warm-light)" opacity="0"/>
+            </g>
+            <g clip-path="url(#clip-spalnya)">
+              <circle id="glow-bedroom_light" cx="696" cy="120" r="150" fill="url(#warm-light)" opacity="0"/>
+            </g>
+            <g clip-path="url(#clip-prihozhaya)">
+              <circle id="glow-hallway_night_light" cx="220" cy="340" r="80" fill="url(#night-light)" opacity="0"/>
+            </g>
+            <g clip-path="url(#clip-sanuzel)">
+              <circle id="glow-bathroom_light" cx="113" cy="90" r="135" fill="url(#work-light)" opacity="0"/>
+            </g>
+          </g>
+          <g stroke="#8A929C" stroke-width="8" stroke-linecap="square">
+          <line x1="60" y1="60" x2="940" y2="60"/>
+          <line x1="940" y1="60" x2="940" y2="110"/>
+          <line x1="940" y1="270" x2="940" y2="540"/>
+          <line x1="60" y1="540" x2="325" y2="540"/>
+          <line x1="475" y1="540" x2="940" y2="540"/>
+          <line x1="60" y1="60" x2="60" y2="355"/>
+          <line x1="60" y1="445" x2="60" y2="540"/>
+          <line x1="300" y1="60" x2="300" y2="330"/>
+          <line x1="300" y1="440" x2="300" y2="540"/>
+          <line x1="60" y1="230" x2="210.5" y2="230"/>
+          <line x1="285.5" y1="230" x2="300" y2="230"/>
+          <line x1="640" y1="60" x2="640" y2="285"/>
+          <line x1="640" y1="375" x2="640" y2="540"/>
+          </g>
+          <g stroke="#8A929C" stroke-width="1.5" fill="#1A2026">
+            <rect x="325" y="536" width="150" height="8"/>
+            <line x1="325" y1="540" x2="475" y2="540"/>
+            <rect x="936" y="110" width="8" height="160"/>
+            <line x1="940" y1="110" x2="940" y2="270"/>
+          </g>
+          <g stroke="#767B82" fill="none">
+            <line x1="285.5" y1="230" x2="285.5" y2="305.5" stroke-width="4"/>
+            <path d="M 210.5 230 A 75 75 0 0 1 285.5 305.5" stroke-width="1.2" opacity=".55"/>
+          </g>
+          <g stroke="#767B82" fill="none">
+            <line x1="640" y1="375" x2="730" y2="375" stroke-width="4"/>
+            <path d="M 640 285 A 90 90 0 0 1 730 375" stroke-width="1.2" opacity=".55"/>
+          </g>
+          <g id="plan-door" stroke="#9AA3AD" fill="none">
+            <path id="plan-door-arc" d="M 60 355 A 90 90 0 0 1 150 445" stroke-width="1.2" opacity="0"/>
+            <line id="plan-door-leaf" x1="60" y1="445" x2="60" y2="355" stroke-width="5"/>
+          </g>
+          <g fill="#767B82" font-size="15" letter-spacing="2.5">
+          <text x="180" y="162" text-anchor="middle">САНУЗЕЛ</text>
+          <text x="180" y="385" text-anchor="middle">ПРИХОЖАЯ</text>
+          <text x="470" y="155" text-anchor="middle">КУХНЯ</text>
+          <text x="470" y="395" text-anchor="middle">ГОСТИНАЯ</text>
+          <text x="790" y="300" text-anchor="middle">СПАЛЬНЯ</text>
+          </g>
+        </svg>
+        <div id="live-dots"></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="voice" id="voice">
+  <div class="wrap">
+    <div class="eyebrow">Голос</div>
+    <h2>Колонка остаётся. Мозгом она быть перестаёт</h2>
+    <p class="section-lead">
+      Жильцу не нужно переучиваться: колонка стоит там же, команды
+      привычные. Меняется одно — где принимается решение.
+    </p>
+    <div class="voice-grid">
+      <div class="voice-card">
+        <h3>Одна фраза — четыре действия</h3>
+        <p>
+          «Алиса, включи кинотеатр» — и основной свет гаснет,
+          подсветка идёт на 15%, лента по периметру на 25%, кухня
+          выключается. Не одна лампа: сценарий целиком, с разной
+          яркостью в каждой комнате.
+        </p>
+        <p class="voice-note">
+          Колонка сама так не умеет — у неё нет понятия «сценарий с
+          разной яркостью». Она умеет сказать дому: запусти. Что при
+          этом произойдёт, решает система в квартире.
+        </p>
+      </div>
+      <div class="voice-card">
+        <h3>Сценарии — какие захотите</h3>
+        <p>
+          Сценарий пишется под жильца, а не выбирается из списка.
+          «Ушёл» гасит всё и закрывает воду, «Гости» поднимает свет во
+          всей квартире, «Отбой» оставляет ночник в прихожей на 20%.
+        </p>
+        <p class="voice-note">
+          Условия тоже любые: время, влажность, движение, состояние
+          другого устройства. Дом действует сам, а голос — только один
+          из способов его позвать.
+        </p>
+      </div>
+      <div class="voice-card">
+        <h3>Голос работает и без интернета</h3>
+        <p>
+          Распознавание речи умеет работать прямо в квартире, не
+          обращаясь ни к какому облаку. Оборвалась линия — колонка
+          Яндекса замолкает, а дом продолжает слышать хозяина.
+        </p>
+        <p class="voice-note">
+          Это не замена колонке, а страховка. И заодно ответ на вопрос
+          «что если у вас отключат сервер»: отключать нечего, всё уже
+          в квартире.
+        </p>
+      </div>
+      <div class="voice-card">
+        <h3>Что мы отдаём Яндексу</h3>
+        <p>
+          Только семь сценариев. Ни одной лампы, ни одного датчика, ни
+          одной автоматики — их Алиса не видит и видеть не должна.
+        </p>
+        <p class="voice-note">
+          Поэтому «умный дом на Алисе» и «дом, которым можно говорить
+          с Алисой» — разные вещи. У первого мозг в облаке Яндекса, у
+          второго в квартире, а колонка — рот и уши.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <b>Мелочь, которую замечают только на живом объекте.</b> У Алисы
+      есть свои встроенные команды, и короткое «включи кино» она
+      поймёт как «заиграй фильм», а «выключи всё» — как «выключись
+      сама». Поэтому голосовые имена разведены с её собственными:
+      «Кинотеатр», «Погасить квартиру», «Подъём». На кнопках при этом
+      остаются короткие человеческие названия — их читают глазами, а
+      не произносят.
+    </div>
+  </div>
+</section>
+<section class="final">
+  <div class="wrap">
+    <h2>Зайти в настоящую систему</h2>
+    <p class="section-lead">
+      План выше — в браузере. А это вход в саму систему: тот же
+      экран, который увидит жилец в своей квартире, с логином и
+      настоящими устройствами.
+    </p>
+    <div class="try">
+      <div class="try-step">
+        <div class="try-num">1</div>
+        <div>
+          <b>Откройте «Мой дом»</b> — это экран жильца. Каждый сценарий
+          описан человеческим языком: что делает и какие у него ручки.
+        </div>
+      </div>
+      <div class="try-step">
+        <div class="try-num">2</div>
+        <div>
+          <b>Включите свет на кухне и в гостиной</b> — увидите, что это
+          разные зоны и разная яркость, а не одна люстра на всё.
+        </div>
+      </div>
+      <div class="try-step">
+        <div class="try-num">3</div>
+        <div>
+          <b>Откройте «План квартиры»</b> — свет заливает комнаты в
+          реальном времени, ровно как в квартире прямо сейчас.
+        </div>
+      </div>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#" id="demo-link">Открыть экран жильца</a>
+      <a class="btn btn-ghost" href="#" id="plan-link">Открыть план квартиры</a>
+    </div>
+    <p class="cabinet-login">
+      Кабинет попросит логин — это настоящая система, а не витрина.
+      Доступ выдаю на время показа, напишите: пришлю вход и включу стенд.
+    </p>
+    <div class="note" id="cabinet-note" style="margin-top:26px" hidden>
+      <b>Живой кабинет сейчас выключен.</b> Он работает на время показа —
+      напишите мне, я включу, и обе кнопки оживут. А сценарии можно нажать
+      прямо на этой странице, в тёмном разделе выше: они работают всегда.
+    </div>
+    <div class="note" style="margin-top:26px">
+      <b>Показать протечку и отказ датчика</b> — это делается с моего
+      пульта, за минуту, при встрече или по видеосвязи. Здесь такой
+      кнопки нет намеренно: она сбрасывает квартиру, и следующий
+      человек увидел бы уже сброшенный дом.
+    </div>
+  </div>
+</section>
+<section class="final" id="contacts" style="padding-top:0">
+  <div class="wrap">
+    <div class="eyebrow">Связаться</div>
+    <h2>Контакты</h2>
+    <p class="section-lead">
+      Предложение простое: <b>одна пилотная квартира</b>. Соберём,
+      посмотрите на заявки и на отклик покупателей — не понравится,
+      вы ничего не потеряли.
+    </p>
+    <div class="contacts">
+      <div class="contact">
+        <div class="label">Кто</div>
+        <div class="val">Алексей</div>
+      </div>
+      <div class="contact">
+        <div class="label">Телефон · Telegram</div>
+        <a href="tel:+79957722202">+7 995 772-22-02</a>
+      </div>
+      <div class="contact">
+        <div class="label">Почта</div>
+        <a href="mailto:yapryntzev2010@yandex.ru">yapryntzev2010@yandex.ru</a>
+      </div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    Демонстрационный стенд. Квартира эмулируется, система управления настоящая.
+  </div>
+</footer>
+<script>
+const STAND_URL   = "http://localhost:8081";
+const vspyshki = {};
+function vspyhnut_imya(devId, trevoga){
+  const label = document.querySelector('[data-label-for="'+devId+'"]');
+  if (!label) return;
+  label.classList.add("srabotala");
+  label.classList.toggle("trevozhnaya", !!trevoga);
+  clearTimeout(vspyshki[devId]);
+  if (trevoga) return;            
+  vspyshki[devId] = setTimeout(() => {
+    label.classList.remove("srabotala", "trevozhnaya");
+  }, 4000);
+}
+function postroit_spisok(devices){
+  const gnezdo = document.getElementById("spisok-priborov");
+  if (!gnezdo) return;
+  gnezdo.innerHTML = "";
+  const po_id = {};
+  for (const d of devices) po_id[d.device_id] = d;
+  const po_nomeru = Object.entries(NOMERA).sort((a,b) => a[1] - b[1]);
+  for (const [devId, nomer] of po_nomeru){
+    const d = po_id[devId];
+    if (!d) continue;
+    if (!document.querySelector('.live-dot[data-id="'+devId+'"]')) continue;
+    const mesto = (typeof PLAN_POS !== "undefined" && PLAN_POS[devId]) || {};
+    const stroka = document.createElement("div");
+    stroka.className = "stroka";
+    stroka.dataset.id = devId;
+    stroka.innerHTML = '<span class="nom"></span><span class="imya"></span>';
+    stroka.querySelector(".nom").textContent = nomer;
+    stroka.querySelector(".imya").textContent = mesto.label || shortName(d.name);
+    const tochka = () => document.querySelector('.live-dot[data-id="'+devId+'"]');
+    const podpis = () => document.querySelector('[data-label-for="'+devId+'"]');
+    stroka.addEventListener("mouseenter", () => {
+      tochka()?.classList.add("pokazan");
+      podpis()?.classList.add("vspyhnula");
+    });
+    stroka.addEventListener("mouseleave", () => {
+      tochka()?.classList.remove("pokazan");
+      podpis()?.classList.remove("vspyhnula");
+    });
+    stroka.addEventListener("click", () => {
+      const p = podpis(); if (!p) return;
+      p.classList.add("vspyhnula");
+      setTimeout(() => p.classList.remove("vspyhnula"), 2000);
+    });
+    gnezdo.appendChild(stroka);
+  }
+}
+const ZNACHIMYE = new Set([
+  "bathroom_leak", "kitchen_leak", "kitchen_smoke", "hallway_motion",
+  "entrance_door", "bathroom_sos", "entrance_button", "bedroom_button",
+]);
+const NOMERA = {
+  bathroom_light: 1, bathroom_fan: 2, bathroom_humidity: 3, washer_socket: 4,
+  hallway_night_light: 5,
+  kitchen_light: 6, kitchen_strip: 7,
+  living_room_main_light: 8, living_room_accent_light: 9,
+  living_room_strip: 10, living_room_temperature: 11,
+  living_room_illuminance: 12, living_room_ir: 13,
+  bedroom_light: 14,
+};
+const CABINET_URL = "https://rubezh-dom.serveousercontent.com";
+const DEMO_URL = CABINET_URL + "/moi-dom/home";           
+const PLAN_URL = CABINET_URL + "/plan-kvartiry/kvartira"; 
+const POLL_INTERVAL_MS = 4000;   
+const CABINET_POLL_MS  = 30000;  
+const OFFLINE_AFTER_MS = 12000;
+const PROBE_TIMEOUT_MS = 3500;   
+const CABINET_TIMEOUT_MS = 15000;
+const PLAN_POS = {
+  living_room_main_light:    {x: 47.5, y: 60.0, label: "Основной свет"},
+  living_room_accent_light:  {x: 56.6, y: 81.7, label: "Подсветка"},
+  living_room_strip:         {x: 34.6, y: 70.0, label: "Лента по периметру"},
+  bathroom_light:            {x: 11.3, y: 15.0, label: "Свет санузла"},
+  bathroom_humidity:         {x: 23.8, y: 22.5, lp: "right", label: "Влажность"},
+  bathroom_fan:              {x: 23.8, y: 15.0, lp: "above", label: "Вентилятор"},
+  hallway_motion:            {x: 16.7, y: 73.3, label: "Движение"},
+  hallway_night_light:       {x: 22.0, y: 56.7, label: "Ночник"},
+  bathroom_leak:             {x:  9.6, y: 32.5, lp: "right", label: "Протечка"},
+  kitchen_light:             {x: 47.5, y: 23.3, label: "Свет кухни"},
+  kitchen_strip:             {x: 51.1, y: 15.0, lp: "left", label: "Лента над столешницей"},
+  kitchen_leak:              {x: 34.6, y: 33.3, label: "Протечка"},
+  kitchen_smoke:             {x: 58.5, y: 22.5, label: "Дым"},
+  living_room_illuminance:   {x: 43.8, y: 46.7, lp: "right", label: "Свет за окном"},
+  living_room_temperature:   {x: 32.8, y: 46.7, lp: "left", label: "Температура"},
+  entrance_button:           {x:  9.6, y: 46.7, lp: "right", label: "Выключатель у двери"},
+  bedroom_button:            {x: 84.6, y: 41.7, lp: "right", label: "Выключатель"},
+  bathroom_sos:              {x: 23.8, y: 30.0, label: "Кнопка помощи"},
+  bedroom_light:             {x: 69.6, y: 20.0, label: "Лампа у кровати"},
+  entrance_door:             {x:  8.7, y: 58.3, label: "Входная дверь"},
+  washer_socket:             {x:  8.7, y: 25.0, lp: "right", label: "Розетка"},
+  living_room_ir:            {x: 58.5, y: 50.0, label: "ИК-пульт"},
+};
+const HIDE_ON_PLAN = new Set([]);
+const ALARM_DOTS = new Set(["bathroom_leak", "kitchen_leak", "kitchen_smoke"]);
+const WAVE_DOTS  = new Set(["hallway_motion"]);
+const DEMO_DEVICES = [
+  {device_id:"living_room_main_light", domain:"light", name:"Гостиная: основной свет", area:"Гостиная"},
+  {device_id:"living_room_accent_light", domain:"light", name:"Гостиная: подсветка", area:"Гостиная"},
+  {device_id:"living_room_strip", domain:"light", name:"Гостиная: лента по периметру", area:"Гостиная"},
+  {device_id:"bathroom_light", domain:"light", name:"Санузел: свет", area:"Санузел"},
+  {device_id:"bathroom_humidity", domain:"sensor", name:"Санузел: влажность", area:"Санузел"},
+  {device_id:"bathroom_fan", domain:"switch", name:"Санузел: вентилятор", area:"Санузел"},
+  {device_id:"hallway_motion", domain:"binary_sensor", name:"Прихожая: датчик движения", area:"Прихожая"},
+  {device_id:"hallway_night_light", domain:"light", name:"Прихожая: ночник", area:"Прихожая"},
+  {device_id:"bathroom_leak", domain:"binary_sensor", name:"Санузел: датчик протечки", area:"Санузел"},
+  {device_id:"kitchen_light", domain:"light", name:"Кухня: рабочий свет", area:"Кухня"},
+  {device_id:"kitchen_strip", domain:"light", name:"Кухня: лента над столешницей", area:"Кухня"},
+  {device_id:"kitchen_leak", domain:"binary_sensor", name:"Кухня: датчик протечки", area:"Кухня"},
+  {device_id:"kitchen_smoke", domain:"binary_sensor", name:"Кухня: датчик дыма", area:"Кухня"},
+  {device_id:"living_room_illuminance", domain:"sensor", name:"Гостиная: свет за окном", area:"Гостиная"},
+  {device_id:"living_room_temperature", domain:"sensor", name:"Гостиная: температура", area:"Гостиная"},
+  {device_id:"entrance_button", domain:"event", name:"Прихожая: выключатель у двери", area:"Прихожая"},
+  {device_id:"bedroom_button", domain:"event", name:"Спальня: выключатель у кровати", area:"Спальня"},
+  {device_id:"bathroom_sos", domain:"event", name:"Санузел: кнопка помощи", area:"Санузел"},
+  {device_id:"bedroom_light", domain:"light", name:"Спальня: лампа у кровати", area:"Спальня"},
+  {device_id:"entrance_door", domain:"binary_sensor", name:"Прихожая: входная дверь", area:"Прихожая"},
+  {device_id:"washer_socket", domain:"switch", name:"Санузел: розетка стиральной машины", area:"Санузел"},
+  {device_id:"living_room_ir", domain:"switch", name:"Гостиная: ИК-пульт", area:"Гостиная"},
+];
+const SCENES = {
+  uzhin: {
+    kitchen_light:{on:true,b:255}, kitchen_strip:{on:true,b:255},
+    living_room_main_light:{on:true,b:102}, living_room_strip:{on:true,b:77},
+    living_room_accent_light:{on:false}, bedroom_light:{on:false},
+    bathroom_light:{on:false}, hallway_night_light:{on:false},
+  },
+  kino: {
+    living_room_main_light:{on:false}, living_room_accent_light:{on:true,b:38},
+    living_room_strip:{on:true,b:64}, kitchen_light:{on:false},
+    kitchen_strip:{on:false}, bedroom_light:{on:false},
+    bathroom_light:{on:false}, hallway_night_light:{on:false},
+  },
+  chtenie: {
+    bedroom_light:{on:true,b:255}, living_room_strip:{on:true,b:26},
+    living_room_main_light:{on:false}, living_room_accent_light:{on:false},
+    kitchen_light:{on:false}, kitchen_strip:{on:false},
+    bathroom_light:{on:false}, hallway_night_light:{on:false},
+  },
+  noch: {
+    hallway_night_light:{on:true,b:51}, bathroom_light:{on:true,b:38},
+    living_room_main_light:{on:false}, living_room_accent_light:{on:false},
+    living_room_strip:{on:false}, kitchen_light:{on:false},
+    kitchen_strip:{on:false}, bedroom_light:{on:false},
+  },
+  dobroe_utro: {
+    bedroom_light:{on:true,b:153}, bathroom_light:{on:true,b:255},
+    kitchen_light:{on:true,b:204}, kitchen_strip:{on:true,b:255},
+    bathroom_fan:{on:true}, hallway_night_light:{on:false},
+    living_room_main_light:{on:false}, living_room_accent_light:{on:false},
+    living_room_strip:{on:false},
+  },
+  gosti: {
+    living_room_main_light:{on:true,b:255}, living_room_accent_light:{on:true,b:153},
+    living_room_strip:{on:true,b:179}, kitchen_light:{on:true,b:230},
+    kitchen_strip:{on:true,b:204}, hallway_night_light:{on:true,b:255},
+    bathroom_light:{on:false}, bedroom_light:{on:false},
+  },
+  vse_vykliuchit: {
+    living_room_main_light:{on:false}, living_room_accent_light:{on:false},
+    living_room_strip:{on:false}, kitchen_light:{on:false},
+    kitchen_strip:{on:false}, bedroom_light:{on:false},
+    bathroom_light:{on:false}, hallway_night_light:{on:false},
+    living_room_ir:{on:false},
+  },
+};
+const demoState = {};
+for (const d of DEMO_DEVICES){
+  demoState[d.device_id] = {
+    value: (d.domain === "light" || d.domain === "switch") ? "OFF" : false,
+    brightness: d.domain === "light" ? 255 : null,
+  };
+}
+function applySceneLocal(key){
+  for (const [id, want] of Object.entries(SCENES[key] || {})){
+    const st = demoState[id];
+    if (!st) continue;
+    st.value = want.on ? "ON" : "OFF";
+    if (want.b != null) st.brightness = want.b;
+  }
+}
+function demoDeviceList(){
+  return DEMO_DEVICES.map(d => ({
+    device_id: d.device_id, domain: d.domain, name: d.name, area: d.area,
+    state: {
+      value: demoState[d.device_id].value,
+      brightness: demoState[d.device_id].brightness,
+      online: true,
+    },
+  }));
+}
+let standOnline = false;      
+let everOnline = false;       
+let lastShownOnline = null;   
+let processRunning = false;   
+let userRanScene = false;     
+let lastOkAt = 0;
+const liveDots = document.getElementById("live-dots");
+const playLog = document.getElementById("play-log");
+const autoLog = document.getElementById("auto-log");
+const demoLink = document.getElementById("demo-link");
+const planLink = document.getElementById("plan-link");
+const cabinetNote = document.getElementById("cabinet-note");
+if (demoLink) demoLink.href = DEMO_URL;
+if (planLink) planLink.href = PLAN_URL;
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function deviceIcon(domain){
+  return {light:"☀︎", switch:"⚙︎",
+          sensor:"◐", binary_sensor:"●"}[domain] || "•";
+}
+function shortName(name){
+  const parts = name.split(":");
+  return parts.length > 1 ? parts[1].trim() : name;
+}
+function fixArea(area){
+  return area === "Коридор" ? "Прихожая" : area;
+}
+function lightsSnapshot(devices){
+  const snap = {};
+  for (const d of devices){
+    if (d.domain !== "light" && d.domain !== "switch") continue;
+    const st = d.state || {};
+    snap[d.device_id] = {
+      name: shortName(d.name),
+      area: d.area,
+      on: st.value === "ON" || st.value === true,
+      pct: st.brightness != null ? Math.round(st.brightness / 255 * 100) : null,
+    };
+  }
+  return snap;
+}
+function diffLines(before, after){
+  const lines = [];
+  for (const id of Object.keys(after)){
+    const a = after[id], b = before[id];
+    if (!b) continue;
+    const where = a.area ? fixArea(a.area) + ": " : "";
+    if (!b.on && a.on){
+      lines.push({cls:"ev-on", text:`+ ${where}${a.name} — включился` +
+        (a.pct != null ? `, яркость ${a.pct}%` : "")});
+    } else if (b.on && !a.on){
+      lines.push({cls:"ev-off", text:`— ${where}${a.name} — выключился`});
+    } else if (a.on && b.pct !== a.pct && a.pct != null){
+      lines.push({cls:"ev-on", text:`~ ${where}${a.name} — яркость ${b.pct}% → ${a.pct}%`});
+    }
+  }
+  return lines;
+}
+function summaryLine(after){
+  const lit = Object.values(after).filter(d => d.on);
+  if (!lit.length) return "Сейчас весь свет погашен.";
+  return "Сейчас включено: " + lit.map(d =>
+    (d.area ? fixArea(d.area) + " — " : "") + d.name +
+    (d.pct != null ? " " + d.pct + "%" : "")).join(" · ") + ".";
+}
+async function fetchDevices(){
+  const r = await fetch(STAND_URL + "/api/public/devices",
+    {cache:"no-store", signal: AbortSignal.timeout(6000)});
+  if (!r.ok) throw new Error("нет связи");
+  return (await r.json()).devices || [];
+}
+async function printProtocol(log, title, lines, after, extraHint){
+  const n = lines.length;
+  const tail = (n % 10 === 1 && n % 100 !== 11) ? "действие"
+    : ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) ? "действия"
+    : "действий";
+  log.innerHTML = `<div class="ev-title">Одна команда «${title}» — ${n} ${tail}:</div>`;
+  if (!lines.length){
+    log.innerHTML += '<div class="play-hint">Квартира уже была в этом состоянии — '
+      + 'запустите другой сценарий и вернитесь.</div>';
+  }
+  for (const l of lines){
+    await sleep(170);
+    log.innerHTML += `<div class="${l.cls}">${l.text}</div>`;
+  }
+  await sleep(200);
+  log.innerHTML += `<div class="play-hint" style="margin-top:6px">${summaryLine(after)}</div>`;
+  if (extraHint) log.innerHTML += `<div class="play-hint">${extraHint}</div>`;
+}
+async function runSceneLive(key, title){
+  const before = lightsSnapshot(await fetchDevices());
+  const r = await fetch(STAND_URL + "/api/public/scene/" + key,
+    {method:"POST", signal: AbortSignal.timeout(6000)});
+  if (!r.ok) throw new Error("сценарий не запустился");
+  await sleep(2200);
+  const after = lightsSnapshot(await fetchDevices());
+  await printProtocol(playLog, title, diffLines(before, after), after);
+}
+async function runSceneLocal(key, title){
+  const before = lightsSnapshot(demoDeviceList());
+  applySceneLocal(key);
+  const after = lightsSnapshot(demoDeviceList());
+  renderFromLocal();
+  await printProtocol(playLog, title, diffLines(before, after), after,
+    "Посчитано прямо на странице — состав и яркости те же, что выполняет квартира.");
+}
+async function runScene(key, title){
+  const buttons = document.querySelectorAll(".play .btn");
+  buttons.forEach(b => b.disabled = true);
+  userRanScene = true;
+  try {
+    if (standOnline){
+      playLog.innerHTML = '<div class="play-hint">Отправляю команду на стенд…</div>';
+      try {
+        await runSceneLive(key, title);
+        return;
+      } catch (e) {
+        standOnline = false;
+        lastOkAt = 0;
+        setStatus(false);
+      }
+    }
+    await runSceneLocal(key, title);
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+for (const btn of document.querySelectorAll(".play-btns .btn[data-scene]")){
+  btn.addEventListener("click", () => {
+    runScene(btn.dataset.scene, btn.textContent.trim());
+  });
+}
+function glowCentr(el){
+  if (el.tagName === "circle") return el.getAttribute("cx") + "px " + el.getAttribute("cy") + "px";
+  if (el.tagName === "ellipse") return el.getAttribute("cx") + "px " + el.getAttribute("cy") + "px";
+  const x = +el.getAttribute("x"), y = +el.getAttribute("y");
+  const w = +el.getAttribute("width"), h = +el.getAttribute("height");
+  return (x + w / 2) + "px " + (y + h / 2) + "px";
+}
+const LAMPA_V_KOMNATE = {
+  kitchen_light: "kuhnya", kitchen_strip: "kuhnya",
+  living_room_main_light: "gostinaya", living_room_strip: "gostinaya",
+  living_room_accent_light: "gostinaya", bedroom_light: "spalnya",
+  hallway_night_light: "prihozhaya", bathroom_light: "sanuzel",
+};
+const yarkostLamp = {};
+function obnovit_pol(deviceId, isOn, st){
+  const komnata = LAMPA_V_KOMNATE[deviceId];
+  if (!komnata) return;
+  const pct = st.brightness != null ? st.brightness / 255 : 1;
+  yarkostLamp[deviceId] = isOn ? pct : 0;
+  let max = 0;
+  for (const [dev, kom] of Object.entries(LAMPA_V_KOMNATE)){
+    if (kom === komnata) max = Math.max(max, yarkostLamp[dev] || 0);
+  }
+  const pol = document.getElementById("pol-" + komnata);
+  if (pol) pol.setAttribute("opacity", (max * 0.06).toFixed(3));
+}
+let dotsBuilt = false;
+function renderDots(devices){
+  if(!dotsBuilt){
+    liveDots.innerHTML = "";
+    for(const d of devices){
+      if (HIDE_ON_PLAN.has(d.device_id)) continue;
+      const pos = PLAN_POS[d.device_id] || d;
+      const dot = document.createElement("div");
+      dot.className = "live-dot" + (d.domain === "light" ? " lamp" : "");
+      dot.style.left = pos.x + "%";
+      dot.style.top = pos.y + "%";
+      dot.title = d.name;
+      dot.textContent = deviceIcon(d.domain);
+      dot.dataset.id = d.device_id;
+      liveDots.appendChild(dot);
+      const nomer = NOMERA[d.device_id];
+      if (nomer) { dot.textContent = nomer; dot.classList.add("s-nomerom"); }
+      const label = document.createElement("div");
+      label.className = "live-dot-label" + (pos.lp ? " lp-" + pos.lp : "");
+      label.style.left = pos.x + "%";
+      label.style.top = pos.y + "%";
+      label.textContent = pos.label || shortName(d.name);
+      if (!ZNACHIMYE.has(d.device_id)) label.classList.add("skrytaya");
+      label.dataset.labelFor = d.device_id;
+      liveDots.appendChild(label);
+    }
+    postroit_spisok(devices);
+    dotsBuilt = true;
+  }
+  for(const d of devices){
+    const st = d.state || {};
+    const isOn = st.value === "ON" || st.value === true;
+    const isOffline = st.online === false;
+    const el = liveDots.querySelector(`[data-id="${d.device_id}"]`);
+    if(el){
+      let cls = "live-dot" + (d.domain === "light" ? " lamp" : "")
+        + (isOn ? " on" : "") + (isOffline ? " offline-fault" : "");
+      if (NOMERA[d.device_id]) cls += " s-nomerom";
+      if (isOn && ALARM_DOTS.has(d.device_id)) cls += " alarm";
+      if (isOn && WAVE_DOTS.has(d.device_id))  cls += " wave";
+      const bylo = el.className;
+      el.className = cls;
+      if (bylo && bylo !== cls) {
+        vspyhnut_imya(d.device_id, isOn && ALARM_DOTS.has(d.device_id));
+      }
+    }
+    const glow = document.getElementById("glow-" + d.device_id);
+    if (glow){
+      const pct = st.brightness != null ? st.brightness / 255 : 1;
+      glow.setAttribute("opacity", isOn ? (0.28 + 0.72 * pct).toFixed(2) : "0");
+      const k = (0.7 + 0.3 * pct).toFixed(3);
+      glow.style.transformOrigin = glowCentr(glow);
+      glow.style.transform = isOn ? "scale(" + k + ")" : "scale(0.7)";
+      if (glow.tagName === "rect" && glow.getAttribute("stroke")) {
+        glow.setAttribute("stroke", pct > 0.55 ? "#F0B06A" : "#D9782F");
+      } else if (glow.tagName === "rect") {
+        glow.setAttribute("fill", pct > 0.55 ? "#F0B06A" : "#D9782F");
+      }
+    }
+    obnovit_pol(d.device_id, isOn, st);
+    if (d.device_id === "entrance_door"){
+      const door = document.getElementById("plan-door");
+      if (door) door.classList.toggle("open", isOn);
+    }
+  }
+}
+function renderFromLocal(){
+  renderDots(demoDeviceList());
+}
+function syncDemoFromLive(devices){
+  for (const d of devices){
+    const st = demoState[d.device_id];
+    if (!st || !d.state) continue;
+    st.value = d.state.value;
+    if (d.state.brightness != null) st.brightness = d.state.brightness;
+  }
+}
+function setStatus(online){
+  if (lastShownOnline === online) return;
+  lastShownOnline = online;
+  if (!online){
+    if (!userRanScene && !everOnline){
+      playLog.innerHTML = '<div class="play-hint">Сейчас на плане — сценарий '
+        + '«Гости». Нажмите другой: здесь появится протокол — что включилось, '
+        + 'что погасло и с какой яркостью.</div>';
+    }
+  }
+}
+async function pollStand(){
+  if (processRunning) return;
+  try{
+    const res = await fetch(STAND_URL + "/api/public/devices",
+      {cache:"no-store", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)});
+    if(!res.ok) throw new Error("bad status");
+    const data = await res.json();
+    lastOkAt = Date.now();
+    standOnline = true;
+    everOnline = true;
+    setStatus(true);
+    syncDemoFromLive(data.devices || []);
+    renderDots(data.devices || []);
+  }catch(e){
+  }
+  if(Date.now() - lastOkAt > OFFLINE_AFTER_MS){
+    standOnline = false;
+    setStatus(false);
+    renderFromLocal();
+  }
+}
+function checkCabinet(){
+  return new Promise(resolve => {
+    const img = new Image();
+    const timer = setTimeout(() => { img.src = ""; resolve(false); }, CABINET_TIMEOUT_MS);
+    img.onload  = () => { clearTimeout(timer); resolve(true); };
+    img.onerror = () => { clearTimeout(timer); resolve(false); };
+    img.src = CABINET_URL + "/static/icons/favicon.ico?probe=" + Date.now();
+  });
+}
+function setCabinetLinks(alive){
+  for (const a of [demoLink, planLink]){
+    if (!a) continue;
+    if (alive) a.removeAttribute("aria-disabled");
+    else a.setAttribute("aria-disabled", "true");
+  }
+  if (cabinetNote) cabinetNote.hidden = alive;
+}
+for (const a of [demoLink, planLink]){
+  if (a) a.addEventListener("click", e => {
+    if (a.getAttribute("aria-disabled") === "true") e.preventDefault();
+  });
+}
+let cabinetFails = 0;
+async function pollCabinet(){
+  if (await checkCabinet()){
+    cabinetFails = 0;
+    setCabinetLinks(true);
+  } else {
+    cabinetFails += 1;
+    if (cabinetFails >= 2) setCabinetLinks(false);
+  }
+}
+function humBadge(show){
+  let b = document.getElementById("hum-badge");
+  if (show && !b){
+    b = document.createElement("div");
+    b.id = "hum-badge";
+    b.className = "hum-badge";
+    b.style.left = "15%";
+    b.style.top = "33%";
+    liveDots.appendChild(b);
+  }
+  if (!show && b) b.remove();
+  return b;
+}
+function addLine(log, html, cls){
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  return div;
+}
+async function processShower(log){
+  const THRESHOLD_ON = 65, THRESHOLD_OFF = 50;
+  log.innerHTML = "";
+  addLine(log, "Вытяжка по влажности — дом следит сам", "ev-title");
+  demoState.bathroom_light.value = "ON";
+  demoState.bathroom_light.brightness = 255;
+  renderFromLocal();
+  addLine(log, "Кто-то зашёл в санузел, включил свет. Пошёл горячий душ.");
+  await sleep(1300);
+  const humLine = addLine(log, "");
+  const badge = humBadge(true);
+  let fanOn = false;
+  const show = v => {
+    const t = `влажность <b>${v.toFixed(0)}%</b>`;
+    humLine.innerHTML = "Санузел: " + t + (fanOn ? " — вытяжка работает" : "");
+    if (badge) badge.innerHTML = t;
+  };
+  for (const v of [45.2, 47.8, 51.3, 55.1, 58.6, 61.8, 64.4,
+                   66.7, 69.9, 73.0, 76.2, 79.0, 81.4, 83.2, 84.3]){
+    show(v);
+    if (!fanOn && v > THRESHOLD_ON){
+      fanOn = true;
+      demoState.bathroom_fan.value = "ON";
+      renderFromLocal();
+      addLine(log, `+ ${v.toFixed(0)}% — выше порога ${THRESHOLD_ON}%: `
+        + "вентилятор включился САМ", "ev-on");
+    }
+    await sleep(380);
+  }
+  await sleep(700);
+  demoState.bathroom_light.value = "OFF";
+  renderFromLocal();
+  addLine(log, "Душ закончился, свет погас. Влажность спадает.");
+  await sleep(600);
+  for (const v of [82.5, 79.1, 74.9, 70.2, 65.4, 60.8, 56.3, 52.6,
+                   49.2, 47.6, 46.4]){
+    show(v);
+    if (fanOn && v < THRESHOLD_OFF){
+      fanOn = false;
+      demoState.bathroom_fan.value = "OFF";
+      renderFromLocal();
+      show(v); 
+      addLine(log, `— ${v.toFixed(0)}% — ниже ${THRESHOLD_OFF}%: `
+        + "вентилятор выключился сам", "ev-off");
+    }
+    await sleep(320);
+  }
+  humBadge(false);
+  await sleep(400);
+  addLine(log, "Влажность вернулась к обычной. Человек не нажал ни одной кнопки.");
+  addLine(log, "Порог 65% и выключение ниже 50% — настоящие настройки квартиры, "
+    + "порог жилец двигает ползунком. Сжато только время: в квартире те же "
+    + "проценты набегают за настоящие минуты.", "play-hint");
+}
+async function processArrival(log){
+  log.innerHTML = "";
+  addLine(log, "Свет навстречу — по датчику двери и движения", "ev-title");
+  for (const d of DEMO_DEVICES){
+    if (d.domain === "light") demoState[d.device_id].value = "OFF";
+  }
+  renderFromLocal();
+  addLine(log, "Ночь. Весь свет в квартире погашен.");
+  await sleep(1400);
+  demoState.entrance_door.value = true;
+  renderFromLocal();
+  addLine(log, "Входная дверь открылась — датчик на двери увидел это первым.");
+  await sleep(1500);
+  demoState.hallway_motion.value = true;
+  renderFromLocal();
+  addLine(log, "В прихожей движение — человек вошёл.");
+  await sleep(1000);
+  demoState.hallway_night_light.value = "ON";
+  demoState.hallway_night_light.brightness = 15; 
+  renderFromLocal();
+  addLine(log, "+ Ночник включился сам — 6% яркости: посреди ночи свет "
+    + "не должен слепить", "ev-on");
+  await sleep(2000);
+  demoState.entrance_door.value = false;
+  renderFromLocal();
+  addLine(log, "Дверь закрылась.");
+  await sleep(2000);
+  demoState.hallway_motion.value = false;
+  renderFromLocal();
+  addLine(log, "Движение прекратилось. Дом ждёт три минуты — вдруг человек вернётся.");
+  await sleep(2600);
+  demoState.hallway_night_light.value = "OFF";
+  renderFromLocal();
+  addLine(log, "— Ночник погас сам. Квартира снова спит.", "ev-off");
+  addLine(log, "Яркость 6% и выдержка 3 минуты — ручки жильца, обе двигаются "
+    + "ползунком. Сжато только время. Днём этот сценарий молчит: свет "
+    + "по движению нужен лишь в темноте.", "play-hint");
+}
+async function runProcess(kind){
+  if (processRunning) return;
+  processRunning = true;
+  const buttons = document.querySelectorAll(".play .btn");
+  buttons.forEach(b => b.disabled = true);
+  try {
+    if (kind === "shower") await processShower(autoLog);
+    else await processArrival(autoLog);
+  } finally {
+    humBadge(false);
+    processRunning = false;
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+for (const btn of document.querySelectorAll("[data-process]")){
+  btn.addEventListener("click", () => runProcess(btn.dataset.process));
+}
+applySceneLocal("gosti");
+renderFromLocal();
+setCabinetLinks(false);
+pollStand();
+setInterval(pollStand, POLL_INTERVAL_MS);
+pollCabinet();
+setInterval(pollCabinet, CABINET_POLL_MS);
+</script>
+</body>
+</html>
