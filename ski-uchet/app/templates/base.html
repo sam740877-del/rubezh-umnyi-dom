@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Учёт СКИ{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <span class="brand">Учёт СКИ</span>
+  <nav>
+    <a href="/">Сводка</a>
+    <a href="/instruments">Приборы</a>
+    <a href="/sites">Участки</a>
+    <a href="/contracts">Договоры</a>
+    <a href="/verifications">Поверки</a>
+    <a href="/movements">Журнал движения</a>
+    <a href="/types">Справочник типов</a>
+  </nav>
+</header>
+<main>
+  {% if msg %}<div class="flash msg">{{ msg }}</div>{% endif %}
+  {% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

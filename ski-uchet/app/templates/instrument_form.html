@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Новый прибор — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Новый прибор</h1>
+<p class="sub">Инвентарный номер должен быть уникальным — по нему прибор ищется в журналах.</p>
+<div class="panel">
+  <form method="post" action="/instruments/new">
+    <div class="fields">
+      <div class="field"><label>Инвентарный номер *</label><input name="inventory_no" required placeholder="СКИ-025"></div>
+      <div class="field"><label>Наименование *</label><input name="name" required placeholder="Нивелир оптический Sokkia B40"></div>
+      <div class="field"><label>Тип *</label>
+        <select name="type_id" required>{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label>Модель</label><input name="model"></div>
+      <div class="field"><label>Производитель</label><input name="manufacturer"></div>
+      <div class="field"><label>Заводской номер</label><input name="serial_no"></div>
+      <div class="field"><label>Год выпуска</label><input name="manufactured_year" inputmode="numeric"></div>
+      <div class="field"><label>Статус</label>
+        <select name="status">
+          {% for key, label in INSTRUMENT_STATUSES.items() %}{% if key != 'in_use' %}<option value="{{ key }}">{{ label }}</option>{% endif %}{% endfor %}
+        </select></div>
+      <div class="field"><label>Дата приобретения</label><input type="date" name="purchase_date"></div>
+      <div class="field"><label>Стоимость, ₽</label><input name="price" inputmode="decimal"></div>
+    </div>
+    <div class="field"><label>Примечание</label><textarea name="notes"></textarea></div>
+    <div class="btn-row"><button type="submit">Сохранить</button><a class="btn ghost" href="/instruments">Отмена</a></div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Журнал движения — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Журнал движения приборов</h1>
+<p class="sub">Выдача на участки и возврат — записей: {{ movements|length }} (последние 500).</p>
+
+<div class="panel">
+  <form class="inline" method="get" action="/movements">
+    <div style="flex:1 1 240px"><label>Участок</label>
+      <select name="site_id"><option value="">— все —</option>
+        {% for s in sites %}<option value="{{ s.id }}" {{ 'selected' if filters.site_id == s.id|string }}>{{ s.name }}</option>{% endfor %}
+      </select></div>
+    <button type="submit">Показать</button>
+    <a class="btn ghost" href="/movements">Сбросить</a>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Дата</th><th>Операция</th><th>Инв. №</th><th>Прибор</th><th>Участок</th><th>Ответственный</th><th>Документ</th></tr>
+    {% for mv in movements %}
+    <tr>
+      <td class="nowrap">{{ m.date_ru(mv.happened_on) }}</td>
+      <td>{% if mv.action == 'issue' %}<span class="badge ok">{{ mv.action_label }}</span>{% else %}<span class="badge neutral">{{ mv.action_label }}</span>{% endif %}</td>
+      <td class="nowrap"><a href="/instruments/{{ mv.instrument_id }}">{{ mv.instrument.inventory_no }}</a></td>
+      <td class="small">{{ mv.instrument.name }}</td>
+      <td class="small"><a href="/sites/{{ mv.site_id }}">{{ mv.site.name }}</a></td>
+      <td class="small">{{ mv.person or '—' }}</td>
+      <td class="small">{{ mv.doc_no or '—' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="muted">Записей нет.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

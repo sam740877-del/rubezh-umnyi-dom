@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Приборы — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Приборы</h1>
+<p class="sub">Найдено: {{ instruments|length }}</p>
+
+<div class="panel">
+  <form class="inline" method="get" action="/instruments">
+    <div style="flex:2 1 220px"><label>Поиск (инв. №, название, зав. №)</label><input name="q" value="{{ filters.q }}" placeholder="СКИ-001 / нивелир"></div>
+    <div style="flex:1 1 150px"><label>Статус</label>
+      <select name="status"><option value="">— любой —</option>
+        {% for key, label in INSTRUMENT_STATUSES.items() %}<option value="{{ key }}" {{ 'selected' if filters.status == key }}>{{ label }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 170px"><label>Тип</label>
+      <select name="type_id"><option value="">— любой —</option>
+        {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if filters.type_id == t.id|string }}>{{ t.name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 170px"><label>Участок</label>
+      <select name="site_id"><option value="">— любой —</option>
+        {% for s in sites %}<option value="{{ s.id }}" {{ 'selected' if filters.site_id == s.id|string }}>{{ s.name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:0 1 auto"><label>Только проблемные</label>
+      <select name="problem"><option value="">нет</option><option value="1" {{ 'selected' if filters.problem }}>да</option></select></div>
+    <button type="submit">Показать</button>
+    <a class="btn ghost" href="/instruments">Сбросить</a>
+  </form>
+</div>
+
+<div class="btn-row" style="margin-bottom:12px">
+  <a class="btn" href="/instruments/new">Добавить прибор</a>
+  <a class="btn ghost" href="/export/instruments.csv">Выгрузить в CSV</a>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Инв. №</th><th>Наименование</th><th>Тип</th><th>Зав. №</th><th>Статус</th><th>Участок</th><th>Поверка до</th><th>Состояние поверки</th></tr>
+    {% for i in instruments %}
+    <tr>
+      <td class="nowrap"><a href="/instruments/{{ i.id }}">{{ i.inventory_no }}</a></td>
+      <td>{{ i.name }}</td>
+      <td class="small muted">{{ i.type.name }}</td>
+      <td class="small">{{ i.serial_no or '—' }}</td>
+      <td>{{ m.status_badge(i) }}</td>
+      <td class="small">{% if i.current_site %}<a href="/sites/{{ i.current_site.id }}">{{ i.current_site.name }}</a>{% else %}—{% endif %}</td>
+      <td class="nowrap small">{{ m.date_ru(i.verification_valid_until) }}</td>
+      <td>{{ m.state_badge(verification_state(i)) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">Ничего не найдено.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
