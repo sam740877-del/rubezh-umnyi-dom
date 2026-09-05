@@ -210,3 +210,103 @@ def test_dashboard_and_demo_seed(session):
     assert data["active_sites"] == 3
     assert data["expired"], "в демо-данных есть просроченные поверки"
     assert data["site_reports"]
+
+
+# --------------------------------------------------------------------------
+# Заявки на перемещение и типовые комплекты
+# --------------------------------------------------------------------------
+
+from app.models import ChangeRequest, KitTemplate, KitTemplateItem  # noqa: E402
+from app.services import (  # noqa: E402
+    apply_kit_template,
+    approve_change_request,
+    create_change_request,
+    open_requests,
+    reject_change_request,
+)
+
+
+def test_request_requires_instrument_on_site(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    with pytest.raises(BusinessError, match="закреплённый за участком"):
+        create_change_request(session, instrument.id, fixture_data["other"].id, "Мастер")
+
+
+def test_approved_request_moves_instrument(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    site, other = fixture_data["site"], fixture_data["other"]
+    issue_instrument(session, instrument.id, site.id, happened_on=TODAY)
+
+    request = create_change_request(
+        session, instrument.id, other.id, "Мастер", requested_on=TODAY
+    )
+    assert request.from_site_id == site.id
+
+    approve_change_request(session, request.id, "Главный инженер", decided_on=TODAY)
+    assert request.status == "approved"
+    assert instrument.current_site_id == other.id
+    # в журнале три записи: первичная выдача, возврат и выдача на новый участок
+    assert len(instrument.movements) == 3
+    assert {m.doc_no for m in instrument.movements} >= {f"ЗАЯВКА-{request.id}"}
+
+
+def test_reject_requires_comment(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
+    request = create_change_request(
+        session, instrument.id, fixture_data["other"].id, "Мастер", requested_on=TODAY
+    )
+
+    with pytest.raises(BusinessError, match="комментарий обязателен"):
+        reject_change_request(session, request.id, "Главный инженер", "")
+
+    reject_change_request(session, request.id, "Главный инженер", "Прибор нужен на своём участке")
+    assert request.status == "rejected"
+    assert request.decision_comment == "Прибор нужен на своём участке"
+    assert instrument.current_site_id == fixture_data["site"].id
+
+
+def test_one_open_request_per_instrument(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
+    create_change_request(
+        session, instrument.id, fixture_data["other"].id, "Мастер", requested_on=TODAY
+    )
+    with pytest.raises(BusinessError, match="уже есть заявка"):
+        create_change_request(
+            session, instrument.id, fixture_data["other"].id, "Мастер", requested_on=TODAY
+        )
+    assert len(open_requests(session)) == 1
+
+
+def test_decided_request_cannot_be_decided_again(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
+    request = create_change_request(
+        session, instrument.id, fixture_data["other"].id, "Мастер", requested_on=TODAY
+    )
+    approve_change_request(session, request.id, "Главный инженер", decided_on=TODAY)
+    with pytest.raises(BusinessError, match="уже обработана"):
+        reject_change_request(session, request.id, "Главный инженер", "поздно")
+
+
+def test_kit_template_applies_and_raises_quantities(session, fixture_data):
+    types = {t.name: t for t in session.query(InstrumentType).all()}
+    template = KitTemplate(name="Монолит")
+    session.add(template)
+    session.flush()
+    session.add_all([
+        KitTemplateItem(template_id=template.id, type_id=types["Нивелир"].id, required_qty=2),
+        KitTemplateItem(template_id=template.id, type_id=types["Штатив"].id, required_qty=1),
+    ])
+    session.flush()
+
+    # на участке уже есть «Нивелир 1 шт.» и «Рулетка 2 шт.»
+    changed = apply_kit_template(session, fixture_data["site"].id, template.id)
+    assert changed == 2
+
+    report = site_completeness(session, fixture_data["site"].id, TODAY)
+    rows = {row.type.name: row.required_qty for row in report.rows}
+    assert rows["Нивелир"] == 2   # поднято до требуемого шаблоном
+    assert rows["Рулетка"] == 2   # своё требование не затёрто
+    assert rows["Штатив"] == 1    # добавлено из шаблона

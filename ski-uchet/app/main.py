@@ -20,16 +20,20 @@ from app import services
 from app.database import get_session, init_db
 from app.models import (
     CATEGORIES,
+    REQUEST_STATUSES,
     CONTRACT_STATUSES,
     INSTRUMENT_STATUSES,
     MOVEMENT_ACTIONS,
     SITE_STATUSES,
     VERIFICATION_KINDS,
     VERIFICATION_RESULTS,
+    ChangeRequest,
     Contract,
     Instrument,
     InstrumentType,
     KitItem,
+    KitTemplate,
+    KitTemplateItem,
     Movement,
     Site,
 )
@@ -54,6 +58,8 @@ templates.env.globals.update(
     VERIFICATION_KINDS=VERIFICATION_KINDS,
     VERIFICATION_RESULTS=VERIFICATION_RESULTS,
     MOVEMENT_ACTIONS=MOVEMENT_ACTIONS,
+    REQUEST_STATUSES=REQUEST_STATUSES,
+    APPROVER_TITLE=services.APPROVER_TITLE,
     verification_state=services.verification_state,
     today=date.today,
 )
@@ -435,6 +441,8 @@ def site_create(
     responsible_name: str = Form(""),
     responsible_phone: str = Form(""),
     status: str = Form("active"),
+    annex_no: str = Form(""),
+    annex_date: str = Form(""),
     notes: str = Form(""),
     db: Session = Depends(get_session),
 ):
@@ -445,6 +453,8 @@ def site_create(
         responsible_name=responsible_name.strip() or None,
         responsible_phone=responsible_phone.strip() or None,
         status=status,
+        annex_no=annex_no.strip() or None,
+        annex_date=parse_date(annex_date),
         notes=notes.strip() or None,
     )
     db.add(site)
@@ -464,6 +474,9 @@ def site_detail(request: Request, site_id: int, db: Session = Depends(get_sessio
         report=report,
         site=report.site,
         types=db.scalars(select(InstrumentType).order_by(InstrumentType.name)).all(),
+        templates=db.scalars(
+            select(KitTemplate).options(selectinload(KitTemplate.items)).order_by(KitTemplate.name)
+        ).all(),
         free_instruments=db.scalars(
             select(Instrument)
             .options(selectinload(Instrument.type), selectinload(Instrument.verifications))
@@ -689,3 +702,162 @@ def export_verifications(days: int = 60, db: Session = Depends(get_session)):
         ["Инв. №", "Наименование", "Участок", "Поверка до", "Состояние", "Дней осталось"],
         rows,
     )
+
+
+# --------------------------------------------------------------------------
+# Типовые комплекты
+# --------------------------------------------------------------------------
+
+
+@app.get("/templates", response_class=HTMLResponse)
+def templates_list(request: Request, db: Session = Depends(get_session)):
+    items = db.scalars(
+        select(KitTemplate).options(selectinload(KitTemplate.items)).order_by(KitTemplate.name)
+    ).all()
+    return render(
+        request,
+        "kit_templates.html",
+        templates_list=items,
+        types=db.scalars(select(InstrumentType).order_by(InstrumentType.name)).all(),
+    )
+
+
+@app.post("/templates/new")
+def template_create(
+    name: str = Form(...), notes: str = Form(""), db: Session = Depends(get_session)
+):
+    db.add(KitTemplate(name=name.strip(), notes=notes.strip() or None))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return redirect("/templates", err=f"Комплект «{name}» уже есть")
+    return redirect("/templates", msg="Типовой комплект создан")
+
+
+@app.post("/templates/{template_id}/item")
+def template_add_item(
+    template_id: int,
+    type_id: int = Form(...),
+    required_qty: int = Form(1),
+    db: Session = Depends(get_session),
+):
+    existing = db.scalar(
+        select(KitTemplateItem).where(
+            KitTemplateItem.template_id == template_id, KitTemplateItem.type_id == type_id
+        )
+    )
+    if existing:
+        existing.required_qty = required_qty
+    else:
+        db.add(
+            KitTemplateItem(template_id=template_id, type_id=type_id, required_qty=required_qty)
+        )
+    db.commit()
+    return redirect("/templates", msg="Позиция сохранена")
+
+
+@app.post("/sites/{site_id}/apply-template")
+def site_apply_template(
+    site_id: int, template_id: int = Form(...), db: Session = Depends(get_session)
+):
+    try:
+        changed = services.apply_kit_template(db, site_id, template_id)
+        db.commit()
+    except BusinessError as error:
+        db.rollback()
+        return redirect(f"/sites/{site_id}", err=str(error))
+    return redirect(f"/sites/{site_id}", msg=f"Комплект применён, позиций добавлено: {changed}")
+
+
+# --------------------------------------------------------------------------
+# Заявки на перемещение
+# --------------------------------------------------------------------------
+
+
+@app.get("/requests", response_class=HTMLResponse)
+def requests_list(request: Request, db: Session = Depends(get_session)):
+    items = db.scalars(
+        select(ChangeRequest)
+        .options(
+            selectinload(ChangeRequest.instrument),
+            selectinload(ChangeRequest.from_site),
+            selectinload(ChangeRequest.to_site),
+        )
+        .order_by(ChangeRequest.status != "new", ChangeRequest.requested_on.desc())
+        .limit(200)
+    ).all()
+    return render(
+        request,
+        "requests.html",
+        requests=items,
+        sites=db.scalars(select(Site).where(Site.status == "active").order_by(Site.name)).all(),
+        placed_instruments=db.scalars(
+            select(Instrument)
+            .options(selectinload(Instrument.current_site))
+            .where(Instrument.current_site_id.is_not(None))
+            .order_by(Instrument.inventory_no)
+        ).all(),
+    )
+
+
+@app.post("/requests/new")
+def request_create(
+    instrument_id: int = Form(...),
+    to_site_id: int = Form(...),
+    requested_by: str = Form(...),
+    reason: str = Form(""),
+    db: Session = Depends(get_session),
+):
+    try:
+        services.create_change_request(
+            db,
+            instrument_id,
+            to_site_id,
+            requested_by,
+            reason=reason.strip() or None,
+        )
+        db.commit()
+    except BusinessError as error:
+        db.rollback()
+        return redirect("/requests", err=str(error))
+    return redirect("/requests", msg="Заявка подана и ждёт согласования")
+
+
+@app.post("/requests/{request_id}/approve")
+def request_approve(
+    request_id: int,
+    decided_by: str = Form(...),
+    comment: str = Form(""),
+    ignore_verification: str = Form(""),
+    db: Session = Depends(get_session),
+):
+    try:
+        services.approve_change_request(
+            db,
+            request_id,
+            decided_by,
+            comment=comment.strip() or None,
+            ignore_verification=bool(ignore_verification),
+        )
+        db.commit()
+    except BusinessError as error:
+        db.rollback()
+        return redirect("/requests", err=str(error))
+    return redirect("/requests", msg="Заявка согласована, прибор перемещён")
+
+
+@app.post("/requests/{request_id}/reject")
+def request_reject(
+    request_id: int,
+    decided_by: str = Form(...),
+    comment: str = Form(""),
+    db: Session = Depends(get_session),
+):
+    try:
+        services.reject_change_request(db, request_id, decided_by, comment)
+        db.commit()
+    except BusinessError as error:
+        db.rollback()
+        return redirect("/requests", err=str(error))
+    return redirect("/requests", msg="Заявка отклонена")

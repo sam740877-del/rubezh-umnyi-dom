@@ -6,8 +6,17 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Contract, Instrument, InstrumentType, KitItem, Site
-from app.services import add_verification, issue_instrument
+from app.models import (
+    ChangeRequest,
+    Contract,
+    Instrument,
+    InstrumentType,
+    KitItem,
+    KitTemplate,
+    KitTemplateItem,
+    Site,
+)
+from app.services import add_verification, apply_kit_template, issue_instrument
 
 # name, category, requires_verification, interval_months
 SEED_TYPES: list[tuple[str, str, bool, int]] = [
@@ -112,6 +121,8 @@ def seed_demo(session: Session, today: date | None = None) -> None:
         contract=contract1,
         responsible_name="Иванов И.И.",
         responsible_phone="+7 900 000-00-01",
+        annex_no="1",
+        annex_date=date(today.year, 1, 15),
     )
     site2 = Site(
         name="ЖК Северный, паркинг",
@@ -119,6 +130,8 @@ def seed_demo(session: Session, today: date | None = None) -> None:
         contract=contract1,
         responsible_name="Петров П.П.",
         responsible_phone="+7 900 000-00-02",
+        annex_no="2",
+        annex_date=date(today.year, 2, 1),
     )
     site3 = Site(
         name="Котельная №4",
@@ -126,6 +139,8 @@ def seed_demo(session: Session, today: date | None = None) -> None:
         contract=contract2,
         responsible_name="Сидоров С.С.",
         responsible_phone="+7 900 000-00-03",
+        annex_no="1",
+        annex_date=date(today.year, 3, 1),
     )
     session.add_all([site1, site2, site3])
     session.flush()
@@ -244,4 +259,54 @@ def seed_demo(session: Session, today: date | None = None) -> None:
 
     # прибор на поверке — типовая ситуация
     created["СКИ-002"].status = "verification"
+
+    # типовые комплекты: они повторяются от договора к договору
+    templates = {
+        "Монолитные работы": [
+            ("Нивелир оптический", 1),
+            ("Рейка нивелирная", 2),
+            ("Рулетка измерительная металлическая", 2),
+            ("Склерометр (молоток Шмидта)", 1),
+            ("Измеритель защитного слоя бетона", 1),
+            ("Термогигрометр", 1),
+        ],
+        "Сварочные работы": [
+            ("Шаблон сварщика УШС-3", 2),
+            ("Набор щупов", 1),
+            ("Штангенциркуль", 1),
+            ("Лупа измерительная 10х", 1),
+            ("Толщиномер покрытий", 1),
+        ],
+        "Геодезическое сопровождение": [
+            ("Тахеометр электронный", 1),
+            ("Нивелир оптический", 1),
+            ("Рейка нивелирная", 2),
+            ("Штатив геодезический", 2),
+            ("Лазерный дальномер", 1),
+        ],
+    }
+    for name, items in templates.items():
+        template = KitTemplate(name=name)
+        session.add(template)
+        session.flush()
+        for type_name, qty in items:
+            session.add(
+                KitTemplateItem(
+                    template_id=template.id, type_id=_type_id(session, type_name), required_qty=qty
+                )
+            )
+    session.flush()
+
+    # заявка мастера на перемещение — ждёт согласования главного инженера
+    session.add(
+        ChangeRequest(
+            instrument_id=created["СКИ-013"].id,
+            from_site_id=site1.id,
+            to_site_id=site2.id,
+            requested_by="Петров П.П., мастер участка",
+            requested_on=today - timedelta(days=1),
+            reason="Нужен склерометр для контроля прочности бетона на паркинге",
+            status="new",
+        )
+    )
     session.flush()

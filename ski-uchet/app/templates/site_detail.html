@@ -7,6 +7,7 @@
   Договор <strong>{{ site.contract.number }}</strong> — {{ site.contract.customer }}
   {% if site.address %} · {{ site.address }}{% endif %}
   {% if site.responsible_name %} · ответственный: {{ site.responsible_name }} {{ site.responsible_phone or '' }}{% endif %}
+  {% if site.annex_no %}<br>Комплект закреплён приложением № {{ site.annex_no }}{% if site.annex_date %} от {{ m.date_ru(site.annex_date) }}{% endif %} к договору{% endif %}
 </p>
 
 <div class="grid cards">
@@ -67,6 +68,12 @@
       </div>
       <div class="btn-row"><button type="submit">Сохранить позицию</button></div>
       <p class="small muted">Если тип уже есть в комплекте — количество будет обновлено.</p>
+    </form>
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+    <form class="inline" method="post" action="/sites/{{ site.id }}/apply-template">
+      <div style="flex:2 1 200px"><label>Применить типовой комплект</label>
+        <select name="template_id" required>{% for t in templates %}<option value="{{ t.id }}">{{ t.name }} ({{ t.total_qty }} приб.)</option>{% endfor %}</select></div>
+      <button class="ghost" type="submit">Применить</button>
     </form>
   </div>
 

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Заявки на перемещение — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Заявки на перемещение</h1>
+<p class="sub">Мастер подаёт заявку на прибор, закреплённый за его участком.
+  Согласует — {{ APPROVER_TITLE|lower }}. Отказ только с указанием причины.</p>
+
+<div class="panel">
+  <details class="form-block" {{ 'open' if err }}>
+    <summary>Подать заявку</summary>
+    <form method="post" action="/requests/new">
+      <div class="fields">
+        <div class="field"><label>Прибор (закреплённые за участками)</label>
+          <select name="instrument_id" required>
+            {% for i in placed_instruments %}
+            <option value="{{ i.id }}">{{ i.inventory_no }} — {{ i.name }} ({{ i.current_site.name }})</option>
+            {% endfor %}
+          </select></div>
+        <div class="field"><label>Куда переместить</label>
+          <select name="to_site_id" required>{% for s in sites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Кто подаёт</label><input name="requested_by" required placeholder="Мастер участка"></div>
+      </div>
+      <div class="field"><label>Обоснование</label><textarea name="reason" placeholder="Зачем прибор нужен на другом участке"></textarea></div>
+      <div class="btn-row"><button type="submit">Подать заявку</button></div>
+    </form>
+  </details>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>№</th><th>Прибор</th><th>Откуда → куда</th><th>Подал</th><th>Дата</th><th>Обоснование</th><th>Статус</th><th>Решение</th></tr>
+    {% for r in requests %}
+    <tr>
+      <td class="nowrap">{{ r.id }}</td>
+      <td class="small"><a href="/instruments/{{ r.instrument_id }}">{{ r.instrument.inventory_no }}</a><div class="muted">{{ r.instrument.name }}</div></td>
+      <td class="small">{{ r.from_site.name if r.from_site else '—' }} → <strong>{{ r.to_site.name }}</strong></td>
+      <td class="small">{{ r.requested_by }}</td>
+      <td class="small nowrap">{{ m.date_ru(r.requested_on) }}</td>
+      <td class="small">{{ r.reason or '—' }}</td>
+      <td>
+        {% if r.status == 'new' %}<span class="badge warn">{{ r.status_label }}</span>
+        {% elif r.status == 'approved' %}<span class="badge ok">{{ r.status_label }}</span>
+        {% else %}<span class="badge bad">{{ r.status_label }}</span>{% endif %}
+      </td>
+      <td class="small">
+        {% if r.is_open %}
+          <form method="post" action="/requests/{{ r.id }}/approve" style="margin-bottom:8px">
+            <input type="hidden" name="decided_by" value="{{ APPROVER_TITLE }}">
+            <button type="submit">Согласовать</button>
+          </form>
+          <form method="post" action="/requests/{{ r.id }}/reject">
+            <input type="hidden" name="decided_by" value="{{ APPROVER_TITLE }}">
+            <input name="comment" placeholder="Причина отказа — обязательно" required style="margin-bottom:6px">
+            <button class="danger" type="submit">Отклонить</button>
+          </form>
+        {% else %}
+          {{ r.decided_by }}, {{ m.date_ru(r.decided_on) }}
+          {% if r.decision_comment %}<div class="muted">{{ r.decision_comment }}</div>{% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="muted">Заявок нет.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

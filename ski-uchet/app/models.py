@@ -50,6 +50,12 @@ VERIFICATION_KINDS = {"verification": "Поверка", "calibration": "Кали
 VERIFICATION_RESULTS = {"ok": "Годен", "fail": "Брак"}
 MOVEMENT_ACTIONS = {"issue": "Выдача", "return": "Возврат"}
 
+REQUEST_STATUSES = {
+    "new": "На согласовании",
+    "approved": "Согласована",
+    "rejected": "Отклонена",
+}
+
 
 class InstrumentType(Base):
     """Тип средства контроля: «Нивелир», «Адгезиметр отрывной», «Штангенциркуль» и т.п."""
@@ -112,6 +118,9 @@ class Site(Base):
     responsible_name: Mapped[str | None] = mapped_column(String(160))
     responsible_phone: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(16), default="active")
+    # Комплект закреплён приложением к договору — храним его реквизиты
+    annex_no: Mapped[str | None] = mapped_column(String(80))
+    annex_date: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
 
     contract: Mapped[Contract] = relationship(back_populates="sites")
@@ -240,3 +249,71 @@ class Movement(Base):
     @property
     def action_label(self) -> str:
         return MOVEMENT_ACTIONS.get(self.action, self.action)
+
+
+class KitTemplate(Base):
+    """Типовой комплект: собирается один раз и применяется к новым участкам."""
+
+    __tablename__ = "kit_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), unique=True)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    items: Mapped[list["KitTemplateItem"]] = relationship(
+        back_populates="template", cascade="all, delete-orphan"
+    )
+
+    @property
+    def total_qty(self) -> int:
+        return sum(item.required_qty for item in self.items)
+
+
+class KitTemplateItem(Base):
+    """Позиция типового комплекта."""
+
+    __tablename__ = "kit_template_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("kit_templates.id", ondelete="CASCADE"))
+    type_id: Mapped[int] = mapped_column(ForeignKey("instrument_types.id", ondelete="RESTRICT"))
+    required_qty: Mapped[int] = mapped_column(Integer, default=1)
+
+    template: Mapped[KitTemplate] = relationship(back_populates="items")
+    type: Mapped[InstrumentType] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("template_id", "type_id", name="uq_template_type"),
+        CheckConstraint("required_qty > 0", name="ck_template_qty_positive"),
+    )
+
+
+class ChangeRequest(Base):
+    """Заявка мастера на перемещение прибора. Согласует главный инженер."""
+
+    __tablename__ = "change_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id", ondelete="CASCADE"))
+    from_site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id", ondelete="SET NULL"))
+    to_site_id: Mapped[int] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"))
+    requested_by: Mapped[str] = mapped_column(String(160))
+    requested_on: Mapped[date] = mapped_column(Date)
+    reason: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="new")
+    decided_by: Mapped[str | None] = mapped_column(String(160))
+    decided_on: Mapped[date | None] = mapped_column(Date)
+    decision_comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    instrument: Mapped[Instrument] = relationship()
+    from_site: Mapped[Site | None] = relationship(foreign_keys=[from_site_id])
+    to_site: Mapped[Site] = relationship(foreign_keys=[to_site_id])
+
+    @property
+    def status_label(self) -> str:
+        return REQUEST_STATUSES.get(self.status, self.status)
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == "new"

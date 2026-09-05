@@ -10,10 +10,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     BLOCKED_FOR_ISSUE,
+    ChangeRequest,
     Contract,
     Instrument,
     InstrumentType,
     KitItem,
+    KitTemplate,
     Movement,
     Site,
     Verification,
@@ -361,8 +363,10 @@ def dashboard(session: Session, today: date | None = None) -> dict:
     site_reports = [site_completeness(session, s.id, today) for s in sites]
     incomplete = [r for r in site_reports if not r.is_complete]
 
+    pending = open_requests(session)
     return {
         "today": today,
+        "open_requests": pending,
         "total_instruments": total,
         "by_status": by_status,
         "active_contracts": session.scalar(
@@ -376,3 +380,188 @@ def dashboard(session: Session, today: date | None = None) -> dict:
         "site_reports": sorted(site_reports, key=lambda r: r.percent),
         "incomplete_sites": incomplete,
     }
+
+
+# --------------------------------------------------------------------------
+# Типовые комплекты
+# --------------------------------------------------------------------------
+
+
+def apply_kit_template(session: Session, site_id: int, template_id: int) -> int:
+    """Применить типовой комплект к участку. Существующие позиции не затираем,
+    а поднимаем количество до требуемого шаблоном."""
+    site = session.get(Site, site_id)
+    if site is None:
+        raise BusinessError("Участок не найден")
+    template = session.get(KitTemplate, template_id)
+    if template is None:
+        raise BusinessError("Типовой комплект не найден")
+    if not template.items:
+        raise BusinessError(f"В комплекте «{template.name}» нет ни одной позиции")
+
+    existing = {
+        item.type_id: item
+        for item in session.scalars(select(KitItem).where(KitItem.site_id == site_id))
+    }
+    changed = 0
+    for item in template.items:
+        current = existing.get(item.type_id)
+        if current is None:
+            session.add(
+                KitItem(site_id=site_id, type_id=item.type_id, required_qty=item.required_qty)
+            )
+            changed += 1
+        elif current.required_qty < item.required_qty:
+            current.required_qty = item.required_qty
+            changed += 1
+    session.flush()
+    return changed
+
+
+# --------------------------------------------------------------------------
+# Заявки на перемещение
+# --------------------------------------------------------------------------
+
+APPROVER_TITLE = "Главный инженер"
+
+
+def create_change_request(
+    session: Session,
+    instrument_id: int,
+    to_site_id: int,
+    requested_by: str,
+    *,
+    reason: str | None = None,
+    requested_on: date | None = None,
+) -> ChangeRequest:
+    """Мастер подаёт заявку на перемещение прибора, который за ним числится."""
+    requested_on = requested_on or date.today()
+    instrument = session.get(Instrument, instrument_id)
+    if instrument is None:
+        raise BusinessError("Прибор не найден")
+    if instrument.current_site_id is None:
+        raise BusinessError(
+            "Заявку можно подать только на прибор, закреплённый за участком. "
+            "Выдачу со склада оформляет кладовщик"
+        )
+    if instrument.current_site_id == to_site_id:
+        raise BusinessError("Прибор уже находится на этом участке")
+
+    target = session.get(Site, to_site_id)
+    if target is None:
+        raise BusinessError("Участок назначения не найден")
+    if target.status != "active":
+        raise BusinessError(f"Участок «{target.name}» не действует ({target.status_label})")
+
+    open_request = session.scalar(
+        select(ChangeRequest).where(
+            ChangeRequest.instrument_id == instrument_id, ChangeRequest.status == "new"
+        )
+    )
+    if open_request is not None:
+        raise BusinessError("По этому прибору уже есть заявка на согласовании")
+    if not requested_by.strip():
+        raise BusinessError("Укажите, кто подаёт заявку")
+
+    request = ChangeRequest(
+        instrument_id=instrument_id,
+        from_site_id=instrument.current_site_id,
+        to_site_id=to_site_id,
+        requested_by=requested_by.strip(),
+        requested_on=requested_on,
+        reason=reason,
+        status="new",
+    )
+    session.add(request)
+    session.flush()
+    return request
+
+
+def approve_change_request(
+    session: Session,
+    request_id: int,
+    decided_by: str,
+    *,
+    decided_on: date | None = None,
+    comment: str | None = None,
+    ignore_verification: bool = False,
+) -> ChangeRequest:
+    """Согласование главным инженером: заявка исполняется сразу — возврат и выдача."""
+    decided_on = decided_on or date.today()
+    request = session.get(ChangeRequest, request_id)
+    if request is None:
+        raise BusinessError("Заявка не найдена")
+    if not request.is_open:
+        raise BusinessError(f"Заявка уже обработана: {request.status_label}")
+    if not decided_by.strip():
+        raise BusinessError("Укажите, кто согласовал заявку")
+
+    doc_no = f"ЗАЯВКА-{request.id}"
+    return_instrument(
+        session,
+        request.instrument_id,
+        happened_on=decided_on,
+        person=request.requested_by,
+        doc_no=doc_no,
+        notes="Перемещение по согласованной заявке",
+    )
+    issue_instrument(
+        session,
+        request.instrument_id,
+        request.to_site_id,
+        happened_on=decided_on,
+        person=request.requested_by,
+        doc_no=doc_no,
+        notes="Перемещение по согласованной заявке",
+        ignore_verification=ignore_verification,
+    )
+
+    request.status = "approved"
+    request.decided_by = decided_by.strip()
+    request.decided_on = decided_on
+    request.decision_comment = comment
+    session.flush()
+    return request
+
+
+def reject_change_request(
+    session: Session,
+    request_id: int,
+    decided_by: str,
+    comment: str,
+    *,
+    decided_on: date | None = None,
+) -> ChangeRequest:
+    """Отказ по заявке. Комментарий обязателен — иначе мастер не поймёт причину."""
+    decided_on = decided_on or date.today()
+    request = session.get(ChangeRequest, request_id)
+    if request is None:
+        raise BusinessError("Заявка не найдена")
+    if not request.is_open:
+        raise BusinessError(f"Заявка уже обработана: {request.status_label}")
+    if not comment or not comment.strip():
+        raise BusinessError("При отказе комментарий обязателен — укажите причину")
+    if not decided_by.strip():
+        raise BusinessError("Укажите, кто принял решение")
+
+    request.status = "rejected"
+    request.decided_by = decided_by.strip()
+    request.decided_on = decided_on
+    request.decision_comment = comment.strip()
+    session.flush()
+    return request
+
+
+def open_requests(session: Session) -> list[ChangeRequest]:
+    return list(
+        session.scalars(
+            select(ChangeRequest)
+            .options(
+                selectinload(ChangeRequest.instrument),
+                selectinload(ChangeRequest.from_site),
+                selectinload(ChangeRequest.to_site),
+            )
+            .where(ChangeRequest.status == "new")
+            .order_by(ChangeRequest.requested_on)
+        )
+    )

@@ -14,6 +14,7 @@
   <div class="card bad"><div class="num">{{ data.missing|length }}</div><div class="lbl">без данных о поверке</div></div>
   <div class="card"><div class="num">{{ data.active_sites }}</div><div class="lbl">действующих участков</div></div>
   <div class="card {{ 'bad' if data.incomplete_sites else 'ok' }}"><div class="num">{{ data.incomplete_sites|length }}</div><div class="lbl">участков с дефицитом</div></div>
+  <div class="card {{ 'warn' if data.open_requests else '' }}"><div class="num">{{ data.open_requests|length }}</div><div class="lbl">заявок на согласовании</div></div>
 </div>
 
 <h2>Укомплектованность участков</h2>
@@ -34,6 +35,25 @@
     {% endfor %}
   </table>
 </div>
+
+{% if data.open_requests %}
+<h2>Заявки на согласовании</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>№</th><th>Прибор</th><th>Откуда → куда</th><th>Подал</th><th>Дата</th></tr>
+    {% for r in data.open_requests %}
+    <tr>
+      <td class="nowrap">{{ r.id }}</td>
+      <td class="small"><a href="/instruments/{{ r.instrument_id }}">{{ r.instrument.inventory_no }}</a> {{ r.instrument.name }}</td>
+      <td class="small">{{ r.from_site.name if r.from_site else '—' }} → <strong>{{ r.to_site.name }}</strong></td>
+      <td class="small">{{ r.requested_by }}</td>
+      <td class="small nowrap">{{ m.date_ru(r.requested_on) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="btn-row"><a class="btn" href="/requests">Рассмотреть заявки</a></div>
+</div>
+{% endif %}
 
 <h2>Требуют внимания по поверке</h2>
 <div class="panel table-wrap">
