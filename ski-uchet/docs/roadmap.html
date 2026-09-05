@@ -185,6 +185,23 @@
   }
   textarea::placeholder { color: var(--muted); opacity: .75; }
   textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .opt {
+    font-family: var(--f-body); font-size: 14.5px; line-height: 1.35;
+    padding: 7px 12px; border: 1px solid var(--rule); background: var(--field);
+    color: var(--ink); cursor: pointer; text-align: left; border-radius: 0;
+    display: inline-flex; gap: 8px; align-items: baseline; max-width: 100%;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .opt[aria-pressed="true"] {
+    background: var(--accent-soft); border-color: var(--accent); font-weight: 700;
+  }
+  .opt .k { font-family: var(--f-mono); font-size: 12px; color: var(--accent); flex: 0 0 auto; }
+  .opt-hint {
+    font-family: var(--f-mono); font-size: 11px; color: var(--muted);
+    margin-top: 10px; letter-spacing: .04em;
+  }
   .q-status {
     font-family: var(--f-mono); font-size: 11px; color: var(--muted);
     margin-top: 6px; min-height: 15px; letter-spacing: .04em;
@@ -525,14 +542,54 @@
       { n: 29, t: "Нужны ли уведомления о поверках и куда: почта, Telegram, или достаточно предупреждений на экране?" }
     ]},
     { title: "Сервер, доступ и роли — после ваших ответов", questions: [
-      { n: 33, blocker: true, t: "Где размещаем сервер: своя машина в офисе с прокинутым наружу доступом, аренда VPS, российское облако? Важно: в системе будут ФИО сотрудников, а это персональные данные — хранить их нужно на серверах в России." },
-      { n: 34, blocker: true, t: "Перечислите роли и что каждой можно. Главное — что может мастер участка: только смотреть свой комплект и отмечать возврат, или ещё принимать и выдавать приборы?" },
-      { n: 35, t: "Мастер видит только свой участок, или все участки своего договора?" },
-      { n: 36, t: "Сколько всего пользователей ожидается — пять, двадцать, полсотни?" },
-      { n: 37, t: "Достаточно входа по логину и паролю, или нужны восстановление пароля по почте и двухфакторная проверка?" },
-      { n: 38, t: "Какие ещё документы храним сканами кроме свидетельств о поверке: паспорта приборов, руководства, сертификаты калибровки, акты, счета? Их фотографируют телефоном или сканируют?" },
-      { n: 39, t: "Есть ли у компании свой домен и корпоративная почта? На них завяжем адрес системы и письма о заканчивающихся поверках." },
-      { n: 40, t: "Нужен ли доступ самому заказчику — посмотреть перечень СИ по своему объекту со сроками поверки, без права что-либо менять?" }
+      { n: 33, blocker: true, t: "Где размещаем сервер? В системе будут ФИО сотрудников — это персональные данные, хранить их нужно на серверах в России.", options: [
+        { k: "а", t: "Своя машина в офисе, доступ наружу через роутер или VPN" },
+        { k: "б", t: "Аренда VPS у российского хостера" },
+        { k: "в", t: "Российское облако" },
+        { k: "г", t: "Не знаю — предложи и обоснуй" }
+      ]},
+      { n: 34, blocker: true, t: "Что может мастер участка? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Только смотреть свой комплект и сроки поверок" },
+        { k: "б", t: "Отмечать возврат прибора с участка" },
+        { k: "в", t: "Подтверждать получение выданных ему приборов" },
+        { k: "г", t: "Выдавать и перемещать приборы наравне с кладовщиком" }
+      ]},
+      { n: 35, t: "Что видит мастер?", options: [
+        { k: "а", t: "Только свой участок" },
+        { k: "б", t: "Все участки своего договора" },
+        { k: "в", t: "Все участки компании" },
+        { k: "г", t: "Настраивается индивидуально для каждого" }
+      ]},
+      { n: 36, t: "Сколько всего пользователей ожидается?", options: [
+        { k: "а", t: "До 5" },
+        { k: "б", t: "5-15" },
+        { k: "в", t: "15-50" },
+        { k: "г", t: "Больше 50" }
+      ]},
+      { n: 37, t: "Как входят в систему? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Логин и пароль, пароли заводит администратор" },
+        { k: "б", t: "Плюс восстановление пароля по почте" },
+        { k: "в", t: "Плюс двухфакторная проверка" },
+        { k: "г", t: "Вход по номеру телефона и коду из СМС" }
+      ]},
+      { n: 38, t: "Какие документы храним сканами? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Свидетельства о поверке и протоколы" },
+        { k: "б", t: "Паспорта приборов и руководства" },
+        { k: "в", t: "Сертификаты калибровки и аттестации" },
+        { k: "г", t: "Акты приёма-передачи, накладные, счета" },
+        { k: "д", t: "Договоры и приложения к ним" }
+      ]},
+      { n: 39, t: "Есть ли у компании домен и корпоративная почта? На них завяжем адрес системы и письма о поверках.", options: [
+        { k: "а", t: "Есть и домен, и почта на нём" },
+        { k: "б", t: "Есть только почта на общем сервисе" },
+        { k: "в", t: "Ничего нет, нужно заводить" },
+        { k: "г", t: "Уточню" }
+      ]},
+      { n: 40, t: "Нужен ли заказчику доступ на просмотр — перечень СИ по своему объекту, без права менять?", options: [
+        { k: "а", t: "Да, нужен" },
+        { k: "б", t: "Нет, отправляем выгрузки и бумаги" },
+        { k: "в", t: "Не сейчас, но заложи на будущее" }
+      ]}
     ]},
     { title: "На вырост", questions: [
       { n: 30, t: "Интересен ли сценарий с QR-кодами: наклейка на прибор, сканирование телефоном при выдаче и возврате вместо выбора из списка?" },
@@ -546,8 +603,9 @@
   var cntEl = document.getElementById("cnt");
   var meterEl = document.getElementById("meter");
   var syncEl = document.getElementById("sync");
-  var fields = {};   // n -> {textarea, status, card}
-  var answers = {};  // n -> text
+  var fields = {};   // n -> {area, status, card, buttons, def}
+  var answers = {};  // n -> свободный текст
+  var chosen = {};   // n -> выбранные буквы
   var db = null;
   var timers = {};
 
@@ -588,9 +646,37 @@
       }
       card.appendChild(head);
 
+      var buttons = {};
+      if (q.options) {
+        var opts = document.createElement("div");
+        opts.className = "opts";
+        q.options.forEach(function (option) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "opt";
+          button.setAttribute("aria-pressed", "false");
+          var key = document.createElement("span");
+          key.className = "k";
+          key.textContent = option.k;
+          button.appendChild(key);
+          button.appendChild(document.createTextNode(option.t));
+          button.addEventListener("click", function () {
+            toggle(q, option.k);
+          });
+          opts.appendChild(button);
+          buttons[option.k] = button;
+        });
+        card.appendChild(opts);
+
+        var hint = document.createElement("div");
+        hint.className = "opt-hint";
+        hint.textContent = q.multi ? "можно выбрать несколько" : "выберите один вариант";
+        card.appendChild(hint);
+      }
+
       var area = document.createElement("textarea");
       area.rows = 1;
-      area.placeholder = "Ответ…";
+      area.placeholder = q.options ? "Уточнение своими словами…" : "Ответ…";
       area.setAttribute("aria-label", "Ответ на вопрос " + q.n);
       card.appendChild(area);
 
@@ -599,7 +685,8 @@
       card.appendChild(status);
 
       wrapper.appendChild(card);
-      fields[q.n] = { area: area, status: status, card: card };
+      fields[q.n] = { area: area, status: status, card: card, buttons: buttons, def: q };
+      chosen[q.n] = [];
 
       area.addEventListener("input", function () {
         autoGrow(area);
@@ -618,16 +705,52 @@
     area.style.height = Math.max(42, area.scrollHeight) + "px";
   }
 
+  function toggle(q, key) {
+    var picked = chosen[q.n] || [];
+    if (picked.indexOf(key) !== -1) {
+      picked = picked.filter(function (k) { return k !== key; });
+    } else {
+      picked = q.multi ? picked.concat([key]) : [key];
+    }
+    chosen[q.n] = picked;
+    paintChoice(q.n);
+    refreshCounter();
+    saveNow(q.n);
+  }
+
+  function paintChoice(n) {
+    var field = fields[n];
+    var picked = chosen[n] || [];
+    for (var key in field.buttons) {
+      field.buttons[key].setAttribute("aria-pressed", picked.indexOf(key) !== -1 ? "true" : "false");
+    }
+  }
+
+  function composed(n) {
+    var field = fields[n];
+    var picked = chosen[n] || [];
+    var labels = (field.def.options || [])
+      .filter(function (option) { return picked.indexOf(option.k) !== -1; })
+      .map(function (option) { return option.k + ") " + option.t; });
+    var note = field.area.value.trim();
+    if (labels.length && note) return labels.join("; ") + " — " + note;
+    if (labels.length) return labels.join("; ");
+    return note;
+  }
+
+  function isAnswered(n) {
+    return (chosen[n] && chosen[n].length > 0) || !!(answers[n] && answers[n].trim());
+  }
+
   function refreshCounter() {
     var done = 0;
-    for (var n in answers) {
-      if (answers[n] && answers[n].trim()) done++;
+    for (var key in fields) {
+      if (isAnswered(key)) done++;
     }
     cntEl.textContent = done + " / " + TOTAL;
     meterEl.style.width = Math.round(done / TOTAL * 100) + "%";
     for (var k in fields) {
-      var filled = !!(answers[k] && answers[k].trim());
-      fields[k].card.classList.toggle("is-answered", filled);
+      fields[k].card.classList.toggle("is-answered", isAnswered(k));
     }
   }
 
@@ -640,11 +763,14 @@
     clearTimeout(timers[n]);
     if (!db) return;
     var field = fields[n];
-    var value = field.area.value.trim();
+    var note = field.area.value.trim();
+    var value = composed(n);
     field.status.textContent = "сохранение…";
     field.status.classList.remove("is-saved");
     db.doc("answers/q" + n).set({
-      question: n,
+      question: Number(n),
+      choice: chosen[n] || [],
+      note: note,
       answer: value,
       updatedAt: new Date().toISOString()
     }).then(function () {
@@ -676,12 +802,16 @@
           var data = docSnap.data() || {};
           var n = data.question;
           if (!fields[n]) return;
-          var incoming = typeof data.answer === "string" ? data.answer : "";
+          var incoming = typeof data.note === "string"
+            ? data.note
+            : (typeof data.answer === "string" ? data.answer : "");
           if (document.activeElement !== fields[n].area && fields[n].area.value !== incoming) {
             fields[n].area.value = incoming;
             autoGrow(fields[n].area);
           }
           answers[n] = incoming;
+          chosen[n] = Array.isArray(data.choice) ? data.choice : [];
+          paintChoice(n);
         });
         refreshCounter();
       }, function () {
