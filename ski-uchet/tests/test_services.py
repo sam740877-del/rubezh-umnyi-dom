@@ -310,3 +310,30 @@ def test_kit_template_applies_and_raises_quantities(session, fixture_data):
     assert rows["Нивелир"] == 2   # поднято до требуемого шаблоном
     assert rows["Рулетка"] == 2   # своё требование не затёрто
     assert rows["Штатив"] == 1    # добавлено из шаблона
+
+
+def test_return_to_repair_requires_description(session, fixture_data):
+    """Возврат по неисправности без описания не проходит — так решил заказчик."""
+    instrument = fixture_data["instruments"]["level"]
+    issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
+
+    with pytest.raises(BusinessError, match="что с прибором не так"):
+        return_instrument(session, instrument.id, happened_on=TODAY, new_status="repair")
+
+    return_instrument(
+        session,
+        instrument.id,
+        happened_on=TODAY,
+        new_status="repair",
+        notes="Сбита юстировка после падения",
+    )
+    assert instrument.status == "repair"
+    returns = [m for m in instrument.movements if m.action == "return"]
+    assert returns[0].notes == "Сбита юстировка после падения"
+
+
+def test_return_to_warehouse_needs_no_description(session, fixture_data):
+    instrument = fixture_data["instruments"]["level"]
+    issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
+    return_instrument(session, instrument.id, happened_on=TODAY)
+    assert instrument.status == "warehouse"

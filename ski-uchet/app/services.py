@@ -223,6 +223,11 @@ def return_instrument(
         raise BusinessError("Прибор не числится ни на одном участке")
     if new_status == "in_use":
         raise BusinessError("При возврате нельзя оставить статус «На участке»")
+    if new_status == "repair" and not (notes and notes.strip()):
+        raise BusinessError(
+            "Возврат по неисправности — укажите, что с прибором не так: "
+            "без описания кладовщик не поймёт, что чинить"
+        )
 
     movement = Movement(
         instrument_id=instrument_id,

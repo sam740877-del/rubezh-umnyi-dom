@@ -46,6 +46,8 @@
               {% for key, label in INSTRUMENT_STATUSES.items() %}{% if key != 'in_use' %}<option value="{{ key }}">{{ label }}</option>{% endif %}{% endfor %}
             </select></div>
         </div>
+        <div class="field"><label>Что с прибором (обязательно при возврате в ремонт)</label>
+          <input name="notes" placeholder="Сбита юстировка, не держит заряд…"></div>
         <div class="btn-row"><button type="submit">Вернуть с участка</button></div>
       </form>
       {% else %}
