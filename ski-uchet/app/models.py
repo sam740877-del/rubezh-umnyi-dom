@@ -18,6 +18,16 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
+def _sql_list(values) -> str:
+    """Закрытый список значений для CHECK-ограничения.
+
+    Берём ключи прямо из словаря подписей: если статус добавят в словарь,
+    но забудут про ограничение, база начнёт отвергать законное значение —
+    и это заметят сразу, а не на данных клиента.
+    """
+    return "(" + ", ".join(f"'{v}'" for v in values) + ")"
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -87,6 +97,12 @@ class Contract(Base):
     """Договор с заказчиком — в нём «живёт» комплект приборов."""
 
     __tablename__ = "contracts"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN " + _sql_list(CONTRACT_STATUSES),
+            name="ck_contract_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[str] = mapped_column(String(80), unique=True)
@@ -110,6 +126,12 @@ class Site(Base):
     """Участок строительства (объект) в рамках договора."""
 
     __tablename__ = "sites"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN " + _sql_list(SITE_STATUSES),
+            name="ck_site_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -158,6 +180,12 @@ class Instrument(Base):
     """Конкретный экземпляр прибора (по инвентарному номеру)."""
 
     __tablename__ = "instruments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN " + _sql_list(INSTRUMENT_STATUSES),
+            name="ck_instrument_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     inventory_no: Mapped[str] = mapped_column(String(64), unique=True)
@@ -205,6 +233,12 @@ class Verification(Base):
     """Запись о поверке / калибровке / ТО прибора."""
 
     __tablename__ = "verifications"
+    __table_args__ = (
+        CheckConstraint(
+            "result IN " + _sql_list(VERIFICATION_RESULTS),
+            name="ck_verification_result",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id", ondelete="CASCADE"))
@@ -292,6 +326,12 @@ class ChangeRequest(Base):
     """Заявка мастера на перемещение прибора. Согласует главный инженер."""
 
     __tablename__ = "change_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN " + _sql_list(REQUEST_STATUSES),
+            name="ck_request_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id", ondelete="CASCADE"))
@@ -317,3 +357,18 @@ class ChangeRequest(Base):
     @property
     def is_open(self) -> bool:
         return self.status == "new"
+
+
+class SchemaVersion(Base):
+    r"""Версия схемы базы: одна строка на всю базу.
+
+    Взято у БПО (`C:\bpo\db\models.py`) вместе с обоснованием: до появления
+    версии «старая база» находилась только на живых данных клиента, когда
+    менять что-либо уже поздно.
+    """
+
+    __tablename__ = "schema_version"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    applied_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

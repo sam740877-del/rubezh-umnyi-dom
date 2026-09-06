@@ -26,10 +26,31 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):  # noqa: ANN001
     cursor.close()
 
 
-def init_db() -> None:
+def init_db() -> list[str]:
+    r"""Подготовить базу к работе: создать таблицы и догнать версию схемы.
+
+    Одна дверь для всех — запуск сервера, тесты, `manage.py`, будущий
+    импортёр реестра. Урок БПО (`C:\bpo\db\schema.py`): пока каждый
+    готовил базу по-своему, «старая база» находилась только на живых данных.
+
+    Возвращает названия применённых миграций; пустой список означает, что
+    база уже свежая.
+    """
     from app import models  # noqa: F401  (регистрация моделей в метаданных)
+    from app.migrations import apply_migrations
 
     models.Base.metadata.create_all(engine)
+
+    session = SessionLocal()
+    try:
+        applied = apply_migrations(session)
+        session.commit()
+        return applied
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 @contextmanager
