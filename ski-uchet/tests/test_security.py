@@ -153,7 +153,10 @@ def test_keeper_cannot_approve_request_through_the_form(users) -> None:
     assert denied.status_code == 303
     # Адрес приходит закодированным процентами — сравниваем по раскодированному.
     reason = unquote(denied.headers["location"])
-    assert security.Messages.ACCESS_DENIED in reason, (
+    # Текст отказа зависит от раздела и называет, кто им ведает: сверяем
+    # по сути («заявки решает главный инженер»), а не по дословной фразе,
+    # иначе сторож ломается от каждой правки формулировки.
+    assert "главный инженер" in reason.lower(), (
         f"отказ пришёл не по правам, а по другой причине: {reason}"
     )
 
@@ -171,8 +174,9 @@ def test_keeper_cannot_approve_request_through_the_form(users) -> None:
             data={"decided_by": "Главный инженер", "ignore_verification": "1"},
             follow_redirects=False,
         )
-    assert security.Messages.ACCESS_DENIED not in unquote(allowed.headers["location"]), (
-        "главному инженеру не дали согласовать заявку"
+    assert "err=" not in allowed.headers["location"], (
+        f"главному инженеру не дали согласовать заявку: "
+        f"{unquote(allowed.headers['location'])}"
     )
 
 
@@ -366,3 +370,68 @@ def test_secret_key_is_not_in_the_repository() -> None:
         or name.startswith("backups/")
     ]
     assert not forbidden, f"в репозитории лежит то, чему там не место: {forbidden}"
+
+
+def test_keeper_does_not_see_decision_buttons(users) -> None:
+    """Кладовщик не видит кнопок, которые ему нельзя нажимать.
+
+    Найдено приёмкой: кнопки «Согласовать» и «Отклонить» показывались
+    всем. Кладовщик нажимал — и его выбрасывало на Сводку с отказом.
+    Кнопка приглашала, а за нажатие наказывали.
+
+    Скрытая кнопка при этом НЕ считается защитой: право проверяется
+    и на маршруте (см. сторож выше). Здесь стережём другое — чтобы
+    человеку не предлагали чужую работу.
+    """
+    from app.services import create_change_request, issue_instrument
+    from app.models import Site
+
+    session = users
+    instrument = session.query(Instrument).filter(Instrument.status == "warehouse").first()
+    sites = session.query(Site).filter(Site.status == "active").limit(2).all()
+    issue_instrument(session, instrument.id, sites[0].id, ignore_verification=True)
+    create_change_request(session, instrument.id, sites[1].id, "Мастер")
+    session.commit()
+
+    with TestClient(app) as client:
+        login_as(client, "keeper")
+        page = client.get("/requests").text
+
+    assert "Согласовать" not in page, "кладовщику показали чужую кнопку"
+    assert "Решает главный инженер" in page, "не сказано, кто решает заявки"
+
+    with TestClient(app) as client:
+        login_as(client, "chief")
+        page = client.get("/requests").text
+
+    assert "Согласовать" in page, "у главного инженера пропала его кнопка"
+
+
+def test_chief_does_not_see_warehouse_buttons(users) -> None:
+    """Главному инженеру не показывают рабочее место кладовщика.
+
+    Найдено приёмкой: на Складе ему выводились живые кнопки «Выдать»,
+    а в карточке прибора — формы выдачи, возврата и регистрации поверки.
+    При этом подзаголовок Склада прямо гласил «которыми кладовщик может
+    распорядиться» — страница сама признавала, что она не для него.
+    """
+    session = users
+    instrument = session.query(Instrument).filter(Instrument.status == "warehouse").first()
+
+    with TestClient(app) as client:
+        login_as(client, "chief")
+        warehouse = client.get("/warehouse").text
+        card = client.get(f"/instruments/{instrument.id}").text
+
+    assert "К выдаче" not in warehouse, "инженеру показали кнопку выдачи"
+    assert "Выдачу оформляет кладовщик" in warehouse, "не сказано, кто выдаёт"
+    assert "Выдать на участок" not in card, "инженеру показали форму выдачи"
+    assert "Зарегистрировать" not in card, "инженеру показали регистрацию поверки"
+
+    with TestClient(app) as client:
+        login_as(client, "keeper")
+        warehouse = client.get("/warehouse").text
+        card = client.get(f"/instruments/{instrument.id}").text
+
+    assert "К выдаче" in warehouse, "у кладовщика пропала кнопка выдачи"
+    assert "Выдать на участок" in card, "у кладовщика пропала форма выдачи"

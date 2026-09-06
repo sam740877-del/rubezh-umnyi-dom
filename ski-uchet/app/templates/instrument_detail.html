@@ -33,9 +33,17 @@
   </div>
 
   <div>
+    {# Блок движения — только тому, кто вправе выдавать и принимать.
+       Главный инженер склад не ведёт; живые формы «Выдать» и «Вернуть»
+       в его карточке — приглашение сделать чужое и получить отказ. #}
+    {% set can_move = user.can('instrument.issue') or user.can('instrument.return') %}
     <div class="panel">
       <h2 style="margin-top:0">Движение</h2>
-      {% if instrument.current_site %}
+      {% if not can_move %}
+      <p class="muted">Прибор {{ 'на участке «' ~ instrument.current_site.name ~ '»'
+        if instrument.current_site else 'на складе' }}.
+        Выдачу и приём оформляет кладовщик.</p>
+      {% elif instrument.current_site %}
       <form method="post" action="/instruments/{{ instrument.id }}/return">
         <div class="fields">
           <div class="field"><label>Дата возврата</label><input type="date" name="happened_on" value="{{ today().isoformat() }}"></div>
@@ -65,6 +73,7 @@
       {% endif %}
     </div>
 
+    {% if user.can('verification.add') %}
     <div class="panel">
       <h2 style="margin-top:0">Регистрация поверки</h2>
       <form method="post" action="/instruments/{{ instrument.id }}/verification">
@@ -83,6 +92,7 @@
         <div class="btn-row"><button type="submit">Зарегистрировать</button></div>
       </form>
     </div>
+    {% endif %}
   </div>
 </div>
 

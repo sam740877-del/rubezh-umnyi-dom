@@ -51,7 +51,10 @@
     </tr>
     {% endfor %}
   </table>
-  <div class="btn-row"><a class="btn" href="/requests">Рассмотреть заявки</a></div>
+  {# Глагол по роли: «рассмотреть» — дело решающего, остальным просто
+     показываем очередь. #}
+  <div class="btn-row"><a class="btn" href="/requests">{{
+    'Рассмотреть заявки' if user.can('request.decide') else 'Открыть заявки' }}</a></div>
 </div>
 {% endif %}
 

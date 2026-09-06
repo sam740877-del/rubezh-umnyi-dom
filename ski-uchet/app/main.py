@@ -432,10 +432,32 @@ async def login_wall(request: Request, call_next):
     return await call_next(request)
 
 
+#: Кто ведёт закрытые разделы — чтобы отказ говорил, к кому идти,
+#: а не отделывался общей фразой «недостаточно прав».
+SECTION_OWNERS = {
+    "users": "Учётные записи ведёт администратор",
+    "bot": "Бота настраивает администратор",
+    "backups": "Резервными копиями занимается администратор",
+    "import": "Загрузку реестра делает кладовщик или администратор",
+    "audit": "Журнал действий смотрят главный инженер и администратор",
+    "requests": "Заявки решает главный инженер",
+    "instruments": "Выдачу и приём приборов оформляет кладовщик",
+    "warehouse": "Складом распоряжается кладовщик",
+}
+
+
 @app.exception_handler(AccessDenied)
 async def access_denied_handler(request: Request, exc: AccessDenied):
-    """Не хватает прав — говорим по-человечески, а не пятисотой ошибкой."""
-    return RedirectResponse(f"/?err={exc}", status_code=303)
+    """Не хватает прав — говорим, КУДА не пустили и КТО этим ведает.
+
+    Раньше на все случаи была одна фраза «Недостаточно прав для этого
+    действия», и человека выбрасывало на Сводку. При открытии страницы
+    она звучала нелепо: человек ничего не «делал», он перешёл по адресу,
+    и не узнавал ни какой раздел закрыт, ни к кому идти.
+    """
+    section = current_section(request)
+    reason = SECTION_OWNERS.get(section, str(exc))
+    return RedirectResponse(f"/?err={reason}", status_code=303)
 
 
 @app.exception_handler(HTTPException)

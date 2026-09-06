@@ -3,7 +3,9 @@
 {% block title %}Склад — Учёт СКИ{% endblock %}
 {% block content %}
 <h1>Склад</h1>
-<p class="sub">Приборы, которыми кладовщик может распорядиться прямо сейчас.</p>
+<p class="sub">{{ 'Приборы, которыми вы можете распорядиться прямо сейчас.'
+    if user.can('instrument.issue')
+    else 'Что лежит на складе. Выдачу оформляет кладовщик.' }}</p>
 
 <div class="grid cards">
   <div class="card ok"><div class="num">{{ report.ready }}</div><div class="lbl">готовы к выдаче</div></div>
@@ -45,7 +47,11 @@
         {% else %}<span class="badge bad">выдача запрещена</span>{% endif %}
       </td>
       <td class="nowrap">
-        {% if row.can_issue %}<a class="btn" href="/instruments/{{ row.instrument.id }}">Выдать</a>{% endif %}
+        {# Кнопка только тому, кто вправе выдавать: главный инженер склад
+           не ведёт, и живая кнопка «Выдать» ему только мешает. #}
+        {% if row.can_issue and user.can('instrument.issue') %}
+        <a class="btn" href="/instruments/{{ row.instrument.id }}#issue">К выдаче →</a>
+        {% endif %}
       </td>
     </tr>
     {% else %}

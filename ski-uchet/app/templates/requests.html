@@ -44,14 +44,22 @@
         {% else %}<span class="badge bad">{{ r.status_label }}</span>{% endif %}
       </td>
       <td class="small">
-        {% if r.is_open %}
-          <form method="post" action="/requests/{{ r.id }}/approve" style="margin-bottom:8px">
+        {# Кнопки решения показываем только тому, кто вправе решать.
+           Раньше их видел и кладовщик: нажимал — и его выбрасывало
+           на Сводку с отказом. Кнопка приглашала, а за нажатие наказывали.
+           Право проверяется и на маршруте: скрытая кнопка не есть запрет. #}
+        {% if r.is_open and user.can('request.decide') %}
+          <form method="post" action="/requests/{{ r.id }}/approve"
+                style="margin-bottom:8px"
+                onsubmit="return confirm('Согласовать заявку? Прибор сразу переедет на участок «{{ r.to_site.name }}».')">
             <button type="submit">Согласовать</button>
           </form>
           <form method="post" action="/requests/{{ r.id }}/reject">
-            <input name="comment" placeholder="Причина отказа — обязательно" required style="margin-bottom:6px">
+            <input name="comment" placeholder="Причина отказа" required style="margin-bottom:6px">
             <button class="danger" type="submit">Отклонить</button>
           </form>
+        {% elif r.is_open %}
+          <span class="muted">Решает главный инженер</span>
         {% else %}
           {{ r.decided_by }}, {{ m.date_ru(r.decided_on) }}
           {% if r.decision_comment %}<div class="muted">{{ r.decision_comment }}</div>{% endif %}
