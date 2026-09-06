@@ -21,10 +21,21 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import attachments, backup, notifications, security, services, session_cookie
+from app import (
+    attachments,
+    backup,
+    bot,
+    max_api,
+    notifications,
+    security,
+    services,
+    session_cookie,
+)
 from app.database import get_session, init_db
 from app.models import (
     ATTACHMENT_KINDS,
+    BotInvite,
+    BotLink,
     AUDIT_TYPES,
     Attachment,
     USER_ROLES,
@@ -598,6 +609,75 @@ def backups_create(
     except backup.BackupError as exc:
         return redirect("/backups", err=str(exc))
     return redirect("/backups", msg=f"Копия снята: {info.size_text}")
+
+
+# --------------------------------------------------------------------------
+# Бот в MAX
+# --------------------------------------------------------------------------
+
+
+@app.get("/bot", response_class=HTMLResponse)
+def bot_view(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Приглашения и подключённые. Видит администратор."""
+    return render(
+        request,
+        "bot.html",
+        configured=max_api.is_configured(),
+        ttl_days=bot.INVITE_TTL_DAYS,
+        now=datetime.now(),
+        invites=db.scalars(
+            select(BotInvite).order_by(BotInvite.created_at.desc()).limit(50)
+        ).all(),
+        links=db.scalars(
+            select(BotLink).order_by(BotLink.is_active.desc(), BotLink.linked_at.desc())
+        ).all(),
+        sites=db.scalars(
+            select(Site).where(Site.status == "active").order_by(Site.name)
+        ).all(),
+        users=security.list_users(db, only_active=True),
+    )
+
+
+@app.post("/bot/invite")
+def bot_invite_create(
+    site_id: str = Form(""),
+    user_id: str = Form(""),
+    intended_for: str = Form(""),
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Выпустить код-приглашение."""
+    try:
+        invite = bot.create_invite(
+            db,
+            site_id=int(site_id) if site_id else None,
+            user_id=int(user_id) if user_id else None,
+            intended_for=intended_for,
+            created_by=actor.name,
+        )
+        db.commit()
+    except bot.BotError as exc:
+        return redirect("/bot", err=str(exc))
+    return redirect("/bot", msg=f"Код: {invite.code} — продиктуйте его человеку")
+
+
+@app.post("/bot/links/{link_id}/revoke")
+def bot_link_revoke(
+    link_id: int,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Отключить доступ в бот."""
+    try:
+        bot.revoke_link(db, link_id, actor=actor.name)
+        db.commit()
+    except bot.BotError as exc:
+        return redirect("/bot", err=str(exc))
+    return redirect("/bot", msg="Доступ отключён")
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:

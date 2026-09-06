@@ -1,0 +1,557 @@
+r"""Сторож бота: чужого не видно, разговор не теряется, правила те же.
+
+Какое обещание стережём
+------------------------
+
+«Мастер делает через бота ровно то же, что делал бы на сайте, и ровно
+с теми же ограничениями». Бот — не обход правил учёта, а другой вход
+в них. Прибор с просроченной поверкой нельзя выдать ни там, ни там;
+возврат по неисправности требует описания одинаково.
+
+Как обещание ломается в жизни
+------------------------------
+
+**Чужой участок.** Мастер видит только свой (ответ 35). Кнопки показывают
+свои приборы — но `payload` кнопки приходит от человека, и подставить
+туда чужой идентификатор ничто не мешает. Экранная застава здесь не
+защита, ровно как в дефекте Б-1 «Заявок».
+
+**Потерянный разговор.** Заявка собирается в три шага. Если состояние
+живёт в памяти процесса, перезапуск сервера теряет недособранную заявку,
+и мастер начинает заново — на объекте, с телефона, в перчатках.
+
+**Посторонний в боте.** Бот отвечает всякому, кто ему напишет. Он не
+должен подсказывать постороннему даже то, что такая система существует.
+
+Чем доказано
+-------------
+
+Запуском: гоняем настоящий разговор событиями, как их прислал бы MAX,
+и смотрим, что записалось в базу. Сети здесь нет — транспорт отделён
+в `app/max_api.py` намеренно.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+
+import pytest
+
+from app import bot, notifications, security, services
+from app.max_api import Update
+from app.models import (
+    BotInvite,
+    BotLink,
+    ChangeRequest,
+    Contract,
+    Instrument,
+    InstrumentType,
+    Site,
+    Verification,
+)
+
+TODAY = date(2026, 6, 15)
+
+
+@pytest.fixture()
+def world(session):
+    """Два участка, приборы на первом, мастер ещё не привязан."""
+    kind = InstrumentType(name="Нивелир", category="geodesy", verification_interval_months=12)
+    session.add(kind)
+    session.flush()
+
+    contract = Contract(number="Д-1", title="Стройконтроль", customer="ООО Заказчик")
+    session.add(contract)
+    session.flush()
+
+    mine = Site(name="Участок 1", contract_id=contract.id)
+    other = Site(name="Участок 2", contract_id=contract.id)
+    session.add_all([mine, other])
+    session.flush()
+
+    def make(no: str, site_id: int | None) -> Instrument:
+        item = Instrument(inventory_no=no, name=f"Нивелир {no}", type_id=kind.id)
+        session.add(item)
+        session.flush()
+        session.add(
+            Verification(
+                instrument_id=item.id,
+                performed_on=TODAY - timedelta(days=30),
+                valid_until=TODAY + timedelta(days=300),
+                result="ok",
+            )
+        )
+        session.flush()
+        if site_id:
+            services.issue_instrument(session, item.id, site_id, happened_on=TODAY)
+        return item
+
+    session.commit()
+    return {
+        "mine": mine,
+        "other": other,
+        "own": make("ИНВ-001", mine.id),
+        "second": make("ИНВ-002", mine.id),
+        "foreign": make("ИНВ-999", other.id),
+    }
+
+
+def event(text: str = "", *, max_user_id: str = "max-1", payload: str = "") -> Update:
+    """Событие, как его прислал бы MAX."""
+    return Update(
+        update_type="message_callback" if payload else "message_created",
+        max_user_id=max_user_id,
+        chat_id="chat-1",
+        text=text,
+        display_name="Сидоров С.С.",
+        payload=payload,
+    )
+
+
+
+def reply_to(session, update, today=TODAY) -> bot.Reply:
+    """Ответ бота, который обязан быть.
+
+    `handle()` вправе вернуть `None` — «отвечать нечего». В сценариях
+    ниже это всегда ошибка: если бот промолчал там, где человек ждёт
+    ответа, тест должен сказать об этом прямо, а не упасть при обращении
+    к полю несуществующего ответа.
+    """
+    reply = bot.handle(session, update, today)
+    assert reply is not None, "бот промолчал там, где человек ждёт ответа"
+    return reply
+
+
+def link_master(session, world) -> BotLink:
+    """Впустить мастера на первый участок."""
+    invite = bot.create_invite(
+        session, site_id=world["mine"].id, intended_for="Сидоров С.С., мастер"
+    )
+    session.flush()
+    return bot.redeem_invite(session, invite.code, "max-1", "chat-1", "Сидоров С.С.")
+
+
+# --------------------------------------------------------------------------
+# Вход по коду
+# --------------------------------------------------------------------------
+
+
+def test_stranger_learns_nothing(session, world) -> None:
+    """Посторонний не узнаёт о системе ничего.
+
+    Бот не подсказывает даже, что за система за ним стоит: единственное,
+    что доступно, — назвать код.
+    """
+    reply = reply_to(session, event("привет"), TODAY)
+
+    assert "код-приглашение" in reply.text
+    assert "Участок 1" not in reply.text
+    assert "ИНВ-001" not in reply.text
+
+
+def test_invite_lets_the_master_in(session, world) -> None:
+    """По коду мастер входит и сразу видит положение дел на участке."""
+    invite = bot.create_invite(session, site_id=world["mine"].id, intended_for="Сидоров")
+    session.flush()
+
+    reply = reply_to(session, event(invite.code), TODAY)
+
+    assert "Участок 1" in reply.text
+    assert "Приборов на участке: 2" in reply.text
+    assert bot.find_link(session, "max-1") is not None
+
+
+def test_invite_works_once(session, world) -> None:
+    """Код одноразовый: перешлют дальше — не сработает."""
+    invite = bot.create_invite(session, site_id=world["mine"].id)
+    session.flush()
+    bot.handle(session, event(invite.code), TODAY)
+
+    reply = reply_to(session, event(invite.code, max_user_id="max-2"), TODAY)
+
+    assert "уже использован" in reply.text
+    assert bot.find_link(session, "max-2") is None
+
+
+def test_expired_invite_is_refused(session, world) -> None:
+    """Просроченный код не пускает."""
+    invite = bot.create_invite(session, site_id=world["mine"].id)
+    invite.expires_at = datetime.now() - timedelta(days=1)
+    session.flush()
+
+    reply = reply_to(session, event(invite.code), TODAY)
+
+    assert "Срок кода истёк" in reply.text
+
+
+def test_transfer_disables_the_old_link(session, world) -> None:
+    """Перевод на другой участок отключает старую привязку.
+
+    Пока она жива, человек видит чужой участок.
+    """
+    link_master(session, world)
+    second = bot.create_invite(session, site_id=world["other"].id)
+    session.flush()
+
+    bot.handle(session, event(second.code), TODAY)
+
+    active = bot.find_link(session, "max-1")
+    assert active is not None
+    assert active.site_id == world["other"].id, "мастер остался на старом участке"
+
+    # Старая запись не удалена: на неё ссылается история заявок.
+    all_links = session.query(BotLink).filter(BotLink.max_user_id == "max-1").all()
+    assert len(all_links) == 2
+    assert sum(1 for item in all_links if item.is_active) == 1
+
+
+# --------------------------------------------------------------------------
+# Чужого не видно
+# --------------------------------------------------------------------------
+
+
+def test_kit_shows_only_own_site(session, world) -> None:
+    """В комплекте только свои приборы."""
+    link_master(session, world)
+
+    reply = reply_to(session, event(payload="kit"), TODAY)
+
+    assert "ИНВ-001" in reply.text
+    assert "ИНВ-999" not in reply.text, "показан прибор чужого участка"
+
+
+def test_foreign_instrument_is_refused_even_by_direct_payload(session, world) -> None:
+    """Чужой прибор не отдаётся даже при прямой подстановке в кнопку.
+
+    Кнопки показывают своё, но `payload` приходит от человека. Экранная
+    застава здесь не защита — ровно как в дефекте Б-1 «Заявок».
+    """
+    link_master(session, world)
+    bot.handle(session, event(payload="return_ok"), TODAY)
+
+    reply = reply_to(
+        session, event(payload=f"return_ok:{world['foreign'].id}"), TODAY
+    )
+
+    assert "нет" in reply.text.lower()
+
+    session.refresh(world["foreign"])
+    assert world["foreign"].current_site_id == world["other"].id, (
+        "чужой прибор сняли с участка через бота"
+    )
+
+
+def test_foreign_instrument_is_refused_by_number(session, world) -> None:
+    """И по набранному номеру тоже."""
+    link_master(session, world)
+    bot.handle(session, event(payload="return_ok"), TODAY)
+
+    reply = reply_to(session, event("ИНВ-999"), TODAY)
+
+    assert reply is not None
+    session.refresh(world["foreign"])
+    assert world["foreign"].current_site_id == world["other"].id
+
+
+# --------------------------------------------------------------------------
+# Разговор в несколько шагов
+# --------------------------------------------------------------------------
+
+
+def test_request_is_assembled_in_three_steps(session, world) -> None:
+    """Заявка собирается по шагам и доходит до базы."""
+    link_master(session, world)
+
+    bot.handle(session, event(payload="request"), TODAY)
+    bot.handle(session, event(payload=f"request:{world['own'].id}"), TODAY)
+    bot.handle(session, event(payload=f"site:{world['other'].id}"), TODAY)
+    reply = reply_to(session, event("нужен на соседнем объекте"), TODAY)
+    session.commit()
+
+    assert "подана" in reply.text
+
+    request = session.query(ChangeRequest).one()
+    assert request.instrument_id == world["own"].id
+    assert request.to_site_id == world["other"].id
+    assert request.reason == "нужен на соседнем объекте"
+    assert request.requested_by == "Сидоров С.С."
+
+
+def test_dialog_survives_a_restart(session, world) -> None:
+    """Недособранная заявка переживает перезапуск сервера.
+
+    Состояние живёт в базе, а не в памяти процесса: иначе мастер на
+    объекте начинал бы заново после каждого перезапуска.
+    """
+    link_master(session, world)
+    bot.handle(session, event(payload="request"), TODAY)
+    bot.handle(session, event(payload=f"request:{world['own'].id}"), TODAY)
+    session.commit()
+
+    # Имитируем перезапуск: забываем всё, что было в памяти.
+    session.expire_all()
+
+    link = bot.find_link(session, "max-1")
+    assert link is not None, "привязка пропала после перезапуска"
+    assert link.state == "request_pick_site", "разговор потерян"
+
+    bot.handle(session, event(payload=f"site:{world['other'].id}"), TODAY)
+    reply = reply_to(session, event(payload="no_reason"), TODAY)
+    session.commit()
+
+    assert "подана" in reply.text
+    assert session.query(ChangeRequest).count() == 1
+
+
+def test_cancel_returns_to_the_menu(session, world) -> None:
+    """Отмена бросает разговор и ничего не записывает."""
+    link_master(session, world)
+    bot.handle(session, event(payload="request"), TODAY)
+    bot.handle(session, event(payload=f"request:{world['own'].id}"), TODAY)
+
+    reply = reply_to(session, event(payload="cancel"), TODAY)
+    session.commit()
+
+    assert "Отменено" in reply.text
+    link = bot.find_link(session, "max-1")
+    assert link is not None and link.state == "idle"
+    assert session.query(ChangeRequest).count() == 0
+
+
+# --------------------------------------------------------------------------
+# Правила учёта в боте те же
+# --------------------------------------------------------------------------
+
+
+def test_faulty_return_requires_a_description(session, world) -> None:
+    """Возврат по неисправности не пройдёт без объяснения.
+
+    То же правило, что на сайте: иначе кладовщик не поймёт, что чинить.
+    """
+    link_master(session, world)
+    bot.handle(session, event(payload="return_broken"), TODAY)
+    bot.handle(session, event(payload=f"return_broken:{world['own'].id}"), TODAY)
+
+    reply = reply_to(session, event("."), TODAY)
+    session.commit()
+
+    assert "Опишите" in reply.text
+    session.refresh(world["own"])
+    assert world["own"].status == "in_use", "прибор вернули без описания неисправности"
+
+
+def test_faulty_return_goes_to_repair(session, world) -> None:
+    """С описанием прибор возвращается и сразу идёт в ремонт (ответ 55)."""
+    link_master(session, world)
+    bot.handle(session, event(payload="return_broken"), TODAY)
+    bot.handle(session, event(payload=f"return_broken:{world['own'].id}"), TODAY)
+
+    reply = reply_to(session, event("сбит уровень после падения"), TODAY)
+    session.commit()
+
+    assert "неисправный" in reply.text
+    session.refresh(world["own"])
+    assert world["own"].status == "repair"
+    assert world["own"].current_site_id is None
+
+
+def test_healthy_return_needs_no_explanation(session, world) -> None:
+    """Сдача исправного — обычная операция, без объяснений (ответ 54)."""
+    link_master(session, world)
+    bot.handle(session, event(payload="return_ok"), TODAY)
+
+    reply = reply_to(session, event(payload=f"return_ok:{world['own'].id}"), TODAY)
+    session.commit()
+
+    assert "сдан на склад" in reply.text
+    session.refresh(world["own"])
+    assert world["own"].status == "warehouse"
+
+
+# --------------------------------------------------------------------------
+# Сообщения
+# --------------------------------------------------------------------------
+
+
+def test_inbox_does_not_dump_everything_at_once(session, world) -> None:
+    """Накопившиеся сообщения не вываливаются пачкой.
+
+    Вернувшийся из отпуска получил бы стену из тридцати сообщений
+    и не прочитал бы ни одного.
+    """
+    link = link_master(session, world)
+    for i in range(10):
+        notifications.notify_site(
+            session, world["mine"].id, "verification_due", f"Сообщение {i}"
+        )
+    session.commit()
+
+    reply = reply_to(session, event(payload="inbox"), TODAY)
+    session.commit()
+
+    shown = sum(1 for i in range(10) if f"Сообщение {i}" in reply.text)
+    assert shown == bot.RECENT_NOTIFICATIONS, f"показано {shown} сообщений сразу"
+    assert "Ещё сообщений" in reply.text
+
+
+def test_shown_messages_are_marked_delivered_but_not_read(session, world) -> None:
+    """Показанное отмечается доставленным, но не прочитанным.
+
+    Доставка не равна прочтению — правило ящика уведомлений.
+    """
+    link_master(session, world)
+    notifications.notify_site(session, world["mine"].id, "verification_due", "Проверка")
+    session.commit()
+
+    bot.handle(session, event(payload="inbox"), TODAY)
+    session.commit()
+
+    entry = session.query(bot.Notification).one()
+    assert entry.delivered_via == "bot"
+    assert entry.read_at is None, "бот погасил отметку о прочтении"
+
+
+def test_unshown_messages_stay_pending(session, world) -> None:
+    """Непоказанное остаётся недоставленным: человек его не видел."""
+    link_master(session, world)
+    for i in range(10):
+        notifications.notify_site(session, world["mine"].id, "verification_due", f"С {i}")
+    session.commit()
+
+    bot.handle(session, event(payload="inbox"), TODAY)
+    session.commit()
+
+    pending = notifications.pending_for_bot(session)
+    assert len(pending) == 10 - bot.RECENT_NOTIFICATIONS
+
+
+def test_office_role_gets_messages_only(session, world) -> None:
+    """У офисной роли в боте только сообщения: работает она на сайте."""
+    user = security.create_user(
+        session, "chief", "test-password-1", "chief", require_permission=False
+    )
+    invite = bot.create_invite(session, user_id=user.id, intended_for="Главный инженер")
+    session.flush()
+
+    reply = reply_to(session, event(invite.code, max_user_id="max-9"), TODAY)
+    session.commit()
+
+    payloads = [b["payload"] for row in reply.buttons for b in row]
+    assert payloads == ["inbox"], f"офисной роли предложены лишние действия: {payloads}"
+
+
+# --------------------------------------------------------------------------
+# Опрос MAX
+# --------------------------------------------------------------------------
+
+
+class FakeClient:
+    """Поддельный MAX: отдаёт заготовленные события, копит отправленное.
+
+    Сети в сторожах нет намеренно — транспорт отделён в `app/max_api.py`
+    ровно затем, чтобы логику можно было гонять без токена и без бота
+    в мессенджере.
+    """
+
+    def __init__(self, updates=None, fail_on_send: bool = False) -> None:
+        self.updates = list(updates or [])
+        self.sent: list[dict] = []
+        self.fail_on_send = fail_on_send
+
+    def get_updates(self, marker=None, timeout=30, limit=100):
+        batch, self.updates = self.updates, []
+        return batch, (marker or 0) + len(batch)
+
+    def send_message(self, text, *, chat_id=None, user_id=None, buttons=None):
+        if self.fail_on_send:
+            raise RuntimeError("MAX недоступен")
+        self.sent.append(
+            {"text": text, "chat_id": chat_id, "user_id": user_id, "buttons": buttons}
+        )
+        return {"ok": True}
+
+
+def test_poll_answers_the_events(session, world) -> None:
+    """Опрос отвечает на события и двигает указатель."""
+    link_master(session, world)
+    session.commit()
+
+    client = FakeClient([event(payload="kit")])
+    handled, marker = bot.poll_once(session, client)
+    session.commit()
+
+    assert handled == 1
+    assert marker is not None
+    assert "ИНВ-001" in client.sent[0]["text"]
+
+
+def test_one_broken_event_does_not_stop_the_rest(session, world, monkeypatch) -> None:
+    """Одно испорченное событие не останавливает опрос.
+
+    Иначе бот замолчал бы для всех из-за одного сообщения.
+    """
+    link_master(session, world)
+    session.commit()
+
+    original = bot.handle
+    calls = {"n": 0}
+
+    def flaky(sess, update, today=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("что-то пошло не так")
+        return original(sess, update, today)
+
+    monkeypatch.setattr(bot, "handle", flaky)
+
+    client = FakeClient([event(payload="kit"), event(payload="kit")])
+    handled, _ = bot.poll_once(session, client)
+    session.commit()
+
+    assert handled == 1, "второе событие не обработалось после сбоя первого"
+
+
+def test_failed_send_is_recorded_not_swallowed(session, world) -> None:
+    """Неотправленный ответ попадает в журнал, а не пропадает молча."""
+    from app import audit
+
+    link_master(session, world)
+    session.commit()
+
+    client = FakeClient([event(payload="kit")], fail_on_send=True)
+    bot.poll_once(session, client)
+    session.commit()
+
+    actions = [e.action for e in audit.recent(session)]
+    assert "Ответ бота не отправлен" in actions
+
+
+def test_pending_notifications_are_delivered(session, world) -> None:
+    """Бот забирает накопившиеся уведомления и отмечает доставку."""
+    link_master(session, world)
+    notifications.notify_site(session, world["mine"].id, "verification_due", "Поверка!")
+    session.commit()
+
+    client = FakeClient()
+    delivered = bot.deliver_pending(session, client)
+    session.commit()
+
+    assert delivered == 1
+    assert client.sent[0]["text"] == "Поверка!"
+    assert notifications.pending_for_bot(session) == []
+
+
+def test_undelivered_stays_pending_when_nobody_is_linked(session, world) -> None:
+    """Некому доставить — запись ждёт, а не считается доставленной.
+
+    Придёт мастер на участок, привяжется — получит.
+    """
+    notifications.notify_site(session, world["mine"].id, "verification_due", "Поверка!")
+    session.commit()
+
+    client = FakeClient()
+    delivered = bot.deliver_pending(session, client)
+    session.commit()
+
+    assert delivered == 0
+    assert len(notifications.pending_for_bot(session)) == 1

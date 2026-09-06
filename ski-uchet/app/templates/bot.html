@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Бот в MAX — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Бот в MAX</h1>
+
+{% if not configured %}
+<div class="flash err">
+  Бот не настроен: не задан токен. Положите его в переменную окружения
+  <code>MAX_BOT_TOKEN</code> на сервере. Коды-приглашения можно выпускать
+  и сейчас — они пригодятся, когда бот заработает.
+</div>
+{% endif %}
+
+<p class="sub">Через бота работают инженеры строительного контроля — они же мастера
+участков. Учётные записи на сайте им не нужны: бот опознаёт их по коду-приглашению.</p>
+
+<div class="panel">
+  <h2>Выпустить приглашение</h2>
+  <form class="inline" method="post" action="/bot/invite">
+    <div style="flex:1 1 220px"><label>Участок (для мастера)</label>
+      <select name="site_id">
+        <option value="">— не мастер —</option>
+        {% for s in sites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 200px"><label>Или учётная запись (для офиса)</label>
+      <select name="user_id">
+        <option value="">—</option>
+        {% for u in users %}<option value="{{ u.id }}">{{ u.display_name or u.login }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 200px"><label>Кому предназначен</label>
+      <input name="intended_for" placeholder="Сидоров С.С., мастер"></div>
+    <button type="submit">Выпустить код</button>
+  </form>
+  <p class="small muted" style="margin-top:10px">
+    Код одноразовый и живёт {{ ttl_days }} дней. Продиктуйте его человеку —
+    он отправит код боту и получит доступ к своему участку.
+  </p>
+</div>
+
+<h2>Действующие приглашения</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Код</th><th>Кому</th><th>Куда</th><th>Годен до</th><th>Состояние</th></tr>
+    {% for i in invites %}
+    <tr>
+      <td class="nowrap"><code>{{ i.code }}</code></td>
+      <td>{{ i.intended_for or '—' }}</td>
+      <td class="small">{% if i.site %}участок «{{ i.site.name }}»{% elif i.user %}{{ i.user.display_name or i.user.login }}{% else %}—{% endif %}</td>
+      <td class="nowrap small">{{ i.expires_at.strftime('%d.%m.%Y') if i.expires_at else '—' }}</td>
+      <td>
+        {% if i.is_used %}<span class="badge neutral">использован</span>
+        {% elif i.expires_at and i.expires_at < now %}<span class="badge bad">просрочен</span>
+        {% else %}<span class="badge ok">ждёт</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Приглашений пока нет.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<h2>Кто подключён</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Кто</th><th>Участок</th><th>Подключён</th><th>Последний раз</th><th></th></tr>
+    {% for l in links %}
+    <tr class="{{ '' if l.is_active else 'muted' }}">
+      <td>{{ l.display_name }}</td>
+      <td class="small">{% if l.site %}{{ l.site.name }}{% elif l.user %}офис: {{ l.user.display_name or l.user.login }}{% else %}—{% endif %}</td>
+      <td class="nowrap small">{{ l.linked_at.strftime('%d.%m.%Y') if l.linked_at }}</td>
+      <td class="nowrap small">{{ l.last_seen_at.strftime('%d.%m.%Y %H:%M') if l.last_seen_at else '—' }}</td>
+      <td class="nowrap">
+        {% if l.is_active %}
+        <form method="post" action="/bot/links/{{ l.id }}/revoke" style="display:inline">
+          <button type="submit" class="btn ghost">Отключить</button>
+        </form>
+        {% else %}<span class="badge neutral">отключён</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Пока никто не подключился.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <p class="small muted">Перевод мастера на другой участок — выпуском нового кода:
+  старая привязка отключится сама. Отключённые записи не удаляются: на них
+  ссылается история заявок.</p>
+</div>
+{% endblock %}

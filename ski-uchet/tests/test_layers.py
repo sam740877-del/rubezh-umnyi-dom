@@ -54,6 +54,7 @@ CORE_MODULES = (
     "attachments.py",
     "notifications.py",
     "backup.py",
+    "bot.py",
 )
 
 #: Пакеты интерфейса. Слой логики не имеет права о них знать.
@@ -119,7 +120,14 @@ def test_core_modules_are_covered() -> None:
     # session_cookie.py — механизм веба (печенье сеанса), при переезде на Qt
     # он выбрасывается вместе с main.py, поэтому стоит рядом с ним, а не
     # в слое логики.
-    known = set(CORE_MODULES) | {"main.py", "session_cookie.py", "__init__.py"}
+    known = set(CORE_MODULES) | {
+        "main.py",
+        "session_cookie.py",
+        # max_api.py — транспорт к мессенджеру, не правила учёта.
+        # httpx он ввозит законно, поэтому в слое логики ему не место.
+        "max_api.py",
+        "__init__.py",
+    }
     found = {p.name for p in APP.glob("*.py")}
     unknown = sorted(found - known)
 

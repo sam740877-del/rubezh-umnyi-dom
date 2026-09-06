@@ -633,3 +633,96 @@ otify_outbox.py`)
     @property
     def is_delivered(self) -> bool:
         return self.delivered_via is not None
+
+
+#: Состояние разговора с ботом: что бот ждёт от человека следующим шагом.
+#: Пустое состояние — человек в главном меню, каждое сообщение самостоятельно.
+BOT_STATES = {
+    "idle": "Главное меню",
+    "await_code": "Ждём код-приглашение",
+    "request_pick_instrument": "Заявка: выбор прибора",
+    "request_pick_site": "Заявка: выбор участка",
+    "request_reason": "Заявка: причина",
+    "return_pick_instrument": "Возврат: выбор прибора",
+    "return_defect": "Возврат: описание неисправности",
+    "await_photo": "Ждём фото или скан",
+}
+
+
+class BotLink(Base):
+    r"""Привязка человека в MAX к участку или учётной записи.
+
+    Мастера участков работают только через бота, учётных записей на сайте
+    у них нет (ответ на вопрос 49). Опознаёт их бот по коду-приглашению,
+    который выдаёт администратор (ответ 52).
+
+    Офисные роли тоже могут привязаться: им бот доставляет уведомления,
+    а главному инженеру — ещё и решение по заявке прямо в сообщении.
+    Поэтому здесь два поля: `site_id` для мастера и `user_id` для тех,
+    у кого есть учётная запись.
+
+    **Перевод мастера на другой участок** делается перевыпуском кода:
+    старая привязка отключается (`is_active = False`), новая заводится.
+    Удалять нельзя — история заявок ссылается на того, кто их подавал.
+    """
+
+    __tablename__ = "bot_links"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    #: Кто это в мессенджере. Приходит от MAX при первом сообщении.
+    max_user_id: Mapped[str] = mapped_column(String(64), index=True)
+    #: Куда писать. У MAX это отдельный идентификатор беседы.
+    max_chat_id: Mapped[str | None] = mapped_column(String(64))
+    #: Как зовут — из профиля MAX, для подписи в журнале.
+    display_name: Mapped[str] = mapped_column(String(160), default="")
+    #: Участок мастера. Пусто у офисных ролей.
+    site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id", ondelete="SET NULL"))
+    #: Учётная запись, если она есть. Пусто у мастеров.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    linked_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    #: Что бот ждёт следующим шагом.
+    state: Mapped[str] = mapped_column(String(32), default="idle")
+    #: Черновик того, что собирается: выбранный прибор, участок, причина.
+    #: Хранится В БАЗЕ, а не в памяти процесса: сервер перезапустят,
+    #: и недособранная заявка не должна пропадать вместе с ним.
+    draft: Mapped[str | None] = mapped_column(Text)
+
+    site: Mapped[Site | None] = relationship()
+    user: Mapped[User | None] = relationship()
+
+    @property
+    def state_label(self) -> str:
+        return BOT_STATES.get(self.state, self.state)
+
+
+class BotInvite(Base):
+    r"""Код-приглашение: им администратор впускает человека в бота.
+
+    Код одноразовый и с сроком: приглашение, живущее вечно, рано или
+    поздно попадает не туда, а отозвать его будет нечем.
+    """
+
+    __tablename__ = "bot_invites"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    #: Для мастера — участок, на который впускаем.
+    site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"))
+    #: Для офисной роли — чья это учётная запись.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    #: Как назвать человека, пока он не пришёл: «Сидоров С.С., мастер».
+    intended_for: Mapped[str] = mapped_column(String(160), default="")
+    created_by: Mapped[str | None] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime)
+    used_by_max_id: Mapped[str | None] = mapped_column(String(64))
+
+    site: Mapped[Site | None] = relationship()
+    user: Mapped[User | None] = relationship()
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None

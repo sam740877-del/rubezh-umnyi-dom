@@ -78,6 +78,48 @@ def cmd_run(args: argparse.Namespace) -> None:
     uvicorn.run("app.main:app", host=args.host, port=args.port, reload=args.reload)
 
 
+
+def cmd_bot(args) -> None:
+    """Запустить бота: бесконечный опрос MAX.
+
+    Отдельной командой, а не внутри веб-сервера: опрос держит соединение
+    открытым десятками секунд, и мешать этим обработке запросов не стоит.
+    На сервере конторы это будет вторая служба рядом с первой.
+    """
+    import time
+
+    from app import bot, max_api
+    from app.database import session_scope
+
+    if not max_api.is_configured():
+        print(
+            "Не задан токен бота. Положите его в переменную окружения "
+            "MAX_BOT_TOKEN и запустите снова."
+        )
+        return
+
+    client = max_api.MaxClient()
+    marker = None
+    print("Бот запущен. Остановить — Ctrl+C.")
+
+    while True:
+        try:
+            with session_scope() as session:
+                handled, marker = bot.poll_once(session, client, marker)
+                delivered = bot.deliver_pending(session, client)
+            if handled or delivered:
+                print(f"обработано событий: {handled}, доставлено сообщений: {delivered}")
+        except KeyboardInterrupt:
+            print("Бот остановлен.")
+            return
+        except Exception as exc:
+            # Опрос не должен умирать от одной ошибки сети: пауза
+            # и снова. Иначе бот замолкает до перезапуска вручную,
+            # а узнают об этом мастера на объекте.
+            print(f"Сбой опроса: {exc}. Повтор через 15 с.")
+            time.sleep(15)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Учёт СКИ — управление")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -96,6 +138,8 @@ def main() -> None:
     run.add_argument("--port", type=int, default=8000)
     run.add_argument("--reload", action="store_true")
     run.set_defaults(func=cmd_run)
+
+    sub.add_parser("bot", help="запустить бота в MAX").set_defaults(func=cmd_bot)
 
     args = parser.parse_args()
     args.func(args)

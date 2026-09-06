@@ -30,6 +30,7 @@
     <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
     {% if user.can('user.manage') %}
     <a href="/users" class="{{ 'active' if section == 'users' }}">Пользователи</a>
+    <a href="/bot" class="{{ 'active' if section == 'bot' }}">Бот</a>
     <a href="/backups" class="{{ 'active' if section == 'backups' }}">Копии</a>
     {% endif %}
   </nav>

@@ -42,6 +42,7 @@ from app.migrations import (
     m003_users,
     m004_attachments,
     m005_notifications,
+    m006_bot,
 )
 from app.models import SchemaVersion
 
@@ -61,6 +62,7 @@ MIGRATIONS: list[Migration] = [
     Migration(3, m003_users.TITLE, m003_users.upgrade),
     Migration(4, m004_attachments.TITLE, m004_attachments.upgrade),
     Migration(5, m005_notifications.TITLE, m005_notifications.upgrade),
+    Migration(6, m006_bot.TITLE, m006_bot.upgrade),
 ]
 
 
