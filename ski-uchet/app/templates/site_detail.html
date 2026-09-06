@@ -62,7 +62,7 @@
     <form method="post" action="/sites/{{ site.id }}/kit">
       <div class="fields">
         <div class="field"><label>Тип прибора</label>
-          <select name="type_id" required>{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+          <select name="type_id" class="full" required>{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
         <div class="field"><label>Требуется, шт.</label><input name="required_qty" type="number" min="1" value="1"></div>
         <div class="field"><label>Примечание</label><input name="notes"></div>
       </div>
@@ -81,9 +81,15 @@
     <h2 style="margin-top:0">Выдать прибор на участок</h2>
     <form method="post" action="/sites/{{ site.id }}/issue">
       <div class="fields">
-        <div class="field"><label>Прибор (свободные, на складе)</label>
-          <select name="instrument_id" required>
-            {% for i in free_instruments %}<option value="{{ i.id }}">{{ i.inventory_no }} — {{ i.name }}</option>{% endfor %}
+        {# Прибор на всю строку и с пометкой о поверке. Приёмка: в списке
+           были приборы, которые выдать нельзя, — человек выбирал, отправлял
+           и получал отказ. Теперь состояние видно до нажатия. #}
+        <div class="field wide"><label>Прибор (свободные, на складе)</label>
+          <select name="instrument_id" class="full" required>
+            {% for i in free_instruments %}
+            <option value="{{ i.id }}">{{ i.inventory_no }} — {{ i.name }}{%
+              if i.id in blocked_ids %} · {{ blocked_ids[i.id] }}{% endif %}</option>
+            {% endfor %}
           </select></div>
         <div class="field"><label>Дата</label><input type="date" name="happened_on" value="{{ today().isoformat() }}"></div>
         <div class="field"><label>Получил</label><input name="person" value="{{ site.responsible_name or '' }}"></div>

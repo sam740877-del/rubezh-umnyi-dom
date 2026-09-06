@@ -20,7 +20,7 @@
     </div>
     <form class="inline" method="post" action="/templates/{{ t.id }}/item" style="margin-top:12px">
       <div style="flex:2 1 180px"><label>Добавить тип</label>
-        <select name="type_id" required>{% for tp in types %}<option value="{{ tp.id }}">{{ tp.name }}</option>{% endfor %}</select></div>
+        <select name="type_id" class="full" required>{% for tp in types %}<option value="{{ tp.id }}">{{ tp.name }}</option>{% endfor %}</select></div>
       <div style="flex:0 1 90px"><label>Кол-во</label><input name="required_qty" type="number" min="1" value="1"></div>
       <button type="submit">Добавить</button>
     </form>

@@ -9,12 +9,16 @@
   <div class="card"><div class="num">{{ data.total_instruments }}</div><div class="lbl">приборов в учёте</div></div>
   <div class="card"><div class="num">{{ data.by_status.get('in_use', 0) }}</div><div class="lbl">на участках</div></div>
   <div class="card"><div class="num">{{ data.by_status.get('warehouse', 0) }}</div><div class="lbl">на складе</div></div>
-  <div class="card bad"><div class="num">{{ data.expired|length }}</div><div class="lbl">поверка просрочена</div></div>
-  <div class="card warn"><div class="num">{{ data.expiring|length }}</div><div class="lbl">поверка истекает (30 дн.)</div></div>
+  {# Подписи не зависят от числа: «3 действующих участков» и «1 заявок»
+     читаются как черновик, а склонять по числу в шаблоне — заводить
+     правила русской грамматики там, где им не место. Существительное
+     впереди, глагол в форме, годной для любого количества. #}
+  <div class="card bad"><div class="num">{{ data.expired|length }}</div><div class="lbl">поверок просрочено</div></div>
+  <div class="card warn"><div class="num">{{ data.expiring|length }}</div><div class="lbl">поверок истекает за 30 дн.</div></div>
   <div class="card bad"><div class="num">{{ data.missing|length }}</div><div class="lbl">без данных о поверке</div></div>
-  <div class="card"><div class="num">{{ data.active_sites }}</div><div class="lbl">действующих участков</div></div>
+  <div class="card"><div class="num">{{ data.active_sites }}</div><div class="lbl">участков действует</div></div>
   <div class="card {{ 'bad' if data.incomplete_sites else 'ok' }}"><div class="num">{{ data.incomplete_sites|length }}</div><div class="lbl">участков с дефицитом</div></div>
-  <div class="card {{ 'warn' if data.open_requests else '' }}"><div class="num">{{ data.open_requests|length }}</div><div class="lbl">заявок на согласовании</div></div>
+  <div class="card {{ 'warn' if data.open_requests else '' }}"><div class="num">{{ data.open_requests|length }}</div><div class="lbl">заявок ждёт решения</div></div>
 </div>
 
 <h2>Укомплектованность участков</h2>

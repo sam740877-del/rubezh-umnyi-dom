@@ -39,7 +39,12 @@
     {% for row in rows %}
     <tr>
       <td class="nowrap"><a href="/instruments/{{ row.instrument.id }}">{{ row.instrument.inventory_no }}</a></td>
-      <td>{{ row.instrument.name }}{% if row.instrument.model %} <span class="muted">{{ row.instrument.model }}</span>{% endif %}</td>
+      {# Модель дописываем, только если её нет в названии: иначе выходит
+         «Тахеометр Sokkia iM-52 iM-52». В реестре заказчика модель часто
+         уже входит в наименование, и слепое склеивание удваивает её. #}
+      <td>{{ row.instrument.name }}{%
+        if row.instrument.model and row.instrument.model not in row.instrument.name
+        %} <span class="muted">{{ row.instrument.model }}</span>{% endif %}</td>
       <td>{{ row.instrument.type.name }}</td>
       <td>{{ m.state_badge(row.state) }}</td>
       <td>

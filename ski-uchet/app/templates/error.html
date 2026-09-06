@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Учёт СКИ{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:560px; margin:40px auto; text-align:center">
+  <h1>{{ title }}</h1>
+  <p class="sub">{{ explanation }}</p>
+  <div class="btn-row" style="justify-content:center; margin-top:18px">
+    <a class="btn" href="/">На сводку</a>
+    <a class="btn ghost" href="/instruments">К приборам</a>
+  </div>
+</div>
+{% endblock %}

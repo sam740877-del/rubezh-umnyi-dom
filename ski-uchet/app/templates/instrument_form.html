@@ -8,8 +8,16 @@
     <div class="fields">
       <div class="field"><label>Инвентарный номер *</label><input name="inventory_no" required placeholder="СКИ-025"></div>
       <div class="field"><label>Наименование *</label><input name="name" required placeholder="Нивелир оптический Sokkia B40"></div>
-      <div class="field"><label>Тип *</label>
-        <select name="type_id" required>{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+      {# Тип на всю строку: названия вроде «Измеритель прочности бетона
+         ударно-импульсный» в колонку 190 точек не помещаются, а тип
+         задаёт межповерочный интервал — человек должен видеть, что выбрал. #}
+      <div class="field wide"><label>Тип *</label>
+        <select name="type_id" class="full" required>
+          {# Пустой первый пункт: без него выбран первый по алфавиту,
+             и прибор легко сохранить с чужим типом и чужим интервалом. #}
+          <option value="">— выберите тип —</option>
+          {% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select></div>
       <div class="field"><label>Модель</label><input name="model"></div>
       <div class="field"><label>Производитель</label><input name="manufacturer"></div>
       <div class="field"><label>Заводской номер</label><input name="serial_no"></div>

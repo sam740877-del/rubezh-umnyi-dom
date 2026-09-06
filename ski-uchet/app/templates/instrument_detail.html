@@ -14,8 +14,8 @@
     <form method="post" action="/instruments/{{ instrument.id }}/edit">
       <div class="fields">
         <div class="field"><label>Наименование</label><input name="name" value="{{ instrument.name }}" required></div>
-        <div class="field"><label>Тип</label>
-          <select name="type_id">{% for t in types %}<option value="{{ t.id }}" {{ 'selected' if t.id == instrument.type_id }}>{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="field wide"><label>Тип</label>
+          <select name="type_id" class="full">{% for t in types %}<option value="{{ t.id }}" {{ 'selected' if t.id == instrument.type_id }}>{{ t.name }}</option>{% endfor %}</select></div>
         <div class="field"><label>Модель</label><input name="model" value="{{ instrument.model or '' }}"></div>
         <div class="field"><label>Производитель</label><input name="manufacturer" value="{{ instrument.manufacturer or '' }}"></div>
         <div class="field"><label>Заводской номер</label><input name="serial_no" value="{{ instrument.serial_no or '' }}"></div>
@@ -67,7 +67,15 @@
           <div class="field"><label>Получил (ответственный)</label><input name="person"></div>
           <div class="field"><label>Документ (акт)</label><input name="doc_no"></div>
         </div>
-        <label class="small"><input type="checkbox" name="ignore_verification" value="1" style="width:auto"> выдать несмотря на просроченную поверку</label>
+        {# Отметка показывается, ТОЛЬКО когда выдача и правда заблокирована.
+           Раньше она висела и у прибора со здоровой поверкой — это учит
+           отмечать её «на всякий случай», и защита перестаёт работать. #}
+        {% if state.code in ('expired', 'missing') %}
+        <label class="small warn-line">
+          <input type="checkbox" name="ignore_verification" value="1" style="width:auto">
+          выдать, хотя {{ state.label|lower }}
+        </label>
+        {% endif %}
         <div class="btn-row"><button type="submit">Выдать на участок</button></div>
       </form>
       {% endif %}

@@ -9,6 +9,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -458,6 +459,47 @@ async def access_denied_handler(request: Request, exc: AccessDenied):
     section = current_section(request)
     reason = SECTION_OWNERS.get(section, str(exc))
     return RedirectResponse(f"/?err={reason}", status_code=303)
+
+
+#: Что сказать человеку вместо кода ошибки.
+ERROR_TEXTS = {
+    404: (
+        "Такой страницы нет",
+        "Возможно, адрес набран с ошибкой или запись удалили. "
+        "Вернитесь к списку и найдите нужное там.",
+    ),
+    405: (
+        "Так эту страницу не открыть",
+        "Похоже, форма отправлена не туда. Начните с нужного раздела.",
+    ),
+    500: (
+        "Что-то пошло не так",
+        "Сбой в самой системе. Если повторится — скажите администратору, "
+        "он посмотрит журнал ошибок.",
+    ),
+}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(request: Request, exc: StarletteHTTPException):
+    """Ошибка — человеческой страницей, а не голым JSON.
+
+    Раньше несуществующий адрес отдавал `{"detail":"Not Found"}` без шапки,
+    меню и пути назад: человек оказывался в тупике, откуда выбираются
+    только кнопкой «назад» в браузере.
+    """
+    if exc.status_code == 401:
+        return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+
+    title, explanation = ERROR_TEXTS.get(
+        exc.status_code, ("Ошибка", "Что-то не получилось. Попробуйте начать сначала.")
+    )
+    page = render(request, "error.html", title=title, explanation=explanation)
+    # Код ответа сохраняем настоящий: человеку — страница, машине — правда.
+    # С кодом 200 поисковики и следящие за доступностью считали бы, что
+    # несуществующий адрес работает.
+    page.status_code = exc.status_code
+    return page
 
 
 @app.exception_handler(HTTPException)
@@ -1179,6 +1221,13 @@ def site_detail(request: Request, site_id: int, db: Session = Depends(get_sessio
         report = services.site_completeness(db, site_id)
     except BusinessError as error:
         return redirect("/sites", err=str(error))
+    free = db.scalars(
+        select(Instrument)
+        .options(selectinload(Instrument.type), selectinload(Instrument.verifications))
+        .where(Instrument.current_site_id.is_(None), Instrument.status == "warehouse")
+        .order_by(Instrument.inventory_no)
+    ).all()
+
     return render(
         request,
         "site_detail.html",
@@ -1188,12 +1237,15 @@ def site_detail(request: Request, site_id: int, db: Session = Depends(get_sessio
         templates=db.scalars(
             select(KitTemplate).options(selectinload(KitTemplate.items)).order_by(KitTemplate.name)
         ).all(),
-        free_instruments=db.scalars(
-            select(Instrument)
-            .options(selectinload(Instrument.type), selectinload(Instrument.verifications))
-            .where(Instrument.current_site_id.is_(None), Instrument.status == "warehouse")
-            .order_by(Instrument.inventory_no)
-        ).all(),
+        free_instruments=free,
+        # Что мешает выдать — прямо в списке. Приёмка: приборы с просроченной
+        # поверкой стояли там без пометки, человек выбирал и получал отказ.
+        # Причина берётся из той же проверки, что и сама выдача.
+        blocked_ids={
+            item.id: services.verification_state(item).label
+            for item in free
+            if services.verification_state(item).code in services.BLOCKS_ISSUE
+        },
     )
 
 

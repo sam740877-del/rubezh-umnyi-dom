@@ -118,6 +118,18 @@ textarea { min-height: 62px; resize: vertical; }
 .field { margin-bottom: 10px; }
 .fields { display: grid; gap: 10px 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
+/* Поле на всю ширину строки. Приёмка показала: в колонку 190 точек не
+   помещаются «Рулетка измерительная металлическая», «Измеритель прочности
+   бетона ударно-импульсный», «СКИ-003 — Тахеометр Leica TS06 (ЖК Северный,
+   корпус 3)» — а тип задаёт межповерочный интервал, и человек не видит,
+   что сохраняет. Ставим там, где значения длинные по природе. */
+.field.wide { grid-column: 1 / -1; }
+
+/* Список, который не должен обрезать значение. Обрезка в select — беда
+   особого рода: в отличие от текста, человек не может ни прокрутить,
+   ни навести, чтобы прочитать целиком. */
+select.full { width: 100%; }
+
 button, .btn {
   font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 6px;
   border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
