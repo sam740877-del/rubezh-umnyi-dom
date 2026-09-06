@@ -30,5 +30,11 @@ services:
       - key: SKI_SECRET_KEY
         generateValue: true
 
+      # Версия Python указана ещё и файлом `.python-version` в корне:
+      # эту переменную Render читает только при развёртывании через
+      # Blueprint, а при обычном создании службы — нет. Без файла он берёт
+      # самую свежую версию (3.14), с которой SQLAlchemy 2.0.36 несовместим:
+      # развёртывание падало с «descriptor '__getitem__' requires a
+      # 'typing.Union' object but received a 'tuple'».
       - key: PYTHON_VERSION
         value: "3.12.10"
