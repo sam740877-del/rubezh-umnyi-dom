@@ -1341,6 +1341,7 @@ def audit_view(
         request,
         "audit.html",
         entries=entries,
+        titles=audit.object_titles(db, entries),
         audit_types=AUDIT_TYPES,
         filters={"audit_type": audit_type, "who": who},
     )
@@ -1557,17 +1558,21 @@ def request_create(
 @app.post("/requests/{request_id}/approve")
 def request_approve(
     request_id: int,
-    decided_by: str = Form(...),
     comment: str = Form(""),
     ignore_verification: str = Form(""),
     db: Session = Depends(get_session),
     actor: CurrentUser = Depends(guard(Permission.REQUEST_DECIDE)),
 ):
+    # Имя решившего берётся из профиля вошедшего, а НЕ из формы. Раньше
+    # оно приходило скрытым полем со значением «Главный инженер» — то есть
+    # ролью вместо фамилии, да ещё и от браузера, где его можно подменить.
+    # В журнале оставалось безымянное «Главный инженер», хотя решал
+    # конкретный человек и отвечает за решение тоже он.
     try:
         services.approve_change_request(
             db,
             request_id,
-            decided_by,
+            actor.name,
             comment=comment.strip() or None,
             ignore_verification=bool(ignore_verification),
         )
@@ -1581,13 +1586,13 @@ def request_approve(
 @app.post("/requests/{request_id}/reject")
 def request_reject(
     request_id: int,
-    decided_by: str = Form(...),
     comment: str = Form(""),
     db: Session = Depends(get_session),
     actor: CurrentUser = Depends(guard(Permission.REQUEST_DECIDE)),
 ):
+    # Имя из профиля, а не из формы — по той же причине, что и в согласовании.
     try:
-        services.reject_change_request(db, request_id, decided_by, comment)
+        services.reject_change_request(db, request_id, actor.name, comment)
         db.commit()
     except BusinessError as error:
         db.rollback()

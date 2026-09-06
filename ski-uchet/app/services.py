@@ -658,22 +658,35 @@ def approve_change_request(
         raise BusinessError("Укажите, кто согласовал заявку")
 
     doc_no = f"ЗАЯВКА-{request.id}"
+
+    # Обе операции подписываются ТЕМ, КТО СОГЛАСОВАЛ, а не тем, кто подавал
+    # заявку. Раньше здесь стояло `request.requested_by`, и журнал
+    # приписывал выдачу с возвратом мастеру, которого в системе в этот
+    # момент не было вовсе. Для разбора «кто перемещал прибор» такой
+    # журнал врёт, а журнал — единственная опора при разборе.
+    #
+    # Кто просил, видно в самой заявке и в примечании ниже: одно другого
+    # не заменяет. Ответственный за операцию — тот, чьим решением она
+    # состоялась.
+    moved_by = decided_by.strip()
+    reason = f"Перемещение по заявке №{request.id} (подал: {request.requested_by})"
+
     return_instrument(
         session,
         request.instrument_id,
         happened_on=decided_on,
-        person=request.requested_by,
+        person=moved_by,
         doc_no=doc_no,
-        notes="Перемещение по согласованной заявке",
+        notes=reason,
     )
     issue_instrument(
         session,
         request.instrument_id,
         request.to_site_id,
         happened_on=decided_on,
-        person=request.requested_by,
+        person=moved_by,
         doc_no=doc_no,
-        notes="Перемещение по согласованной заявке",
+        notes=reason,
         ignore_verification=ignore_verification,
     )
 

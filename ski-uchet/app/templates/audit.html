@@ -32,9 +32,18 @@
         {% else %}{{ e.action }}{% endif %}
       </td>
       <td class="nowrap">
-        {% if e.object_type == 'instrument' %}<a href="/instruments/{{ e.object_id }}">прибор №{{ e.object_id }}</a>
-        {% elif e.object_type == 'site' %}<a href="/sites/{{ e.object_id }}">участок №{{ e.object_id }}</a>
-        {% elif e.object_type == 'change_request' %}заявка №{{ e.object_id }}
+        {# Показываем название, а не внутренний номер: «прибор №13» человеку
+           ничего не говорит, а «СКИ-013 Склерометр» — это то, что он ищет.
+           Номер остаётся запасным вариантом, если объект успели удалить. #}
+        {% set title = titles.get((e.object_type, e.object_id)) %}
+        {% if e.object_type == 'instrument' %}
+          <a href="/instruments/{{ e.object_id }}">{{ title or 'прибор №' ~ e.object_id }}</a>
+        {% elif e.object_type == 'site' %}
+          <a href="/sites/{{ e.object_id }}">{{ title or 'участок №' ~ e.object_id }}</a>
+        {% elif e.object_type == 'change_request' %}
+          <a href="/requests">{{ title or 'заявка №' ~ e.object_id }}</a>
+        {% elif e.object_type == 'user' %}
+          {{ title or 'пользователь №' ~ e.object_id }}
         {% else %}—{% endif %}
       </td>
       <td>{{ e.details or '—' }}</td>

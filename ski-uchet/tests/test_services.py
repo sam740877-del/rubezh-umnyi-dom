@@ -337,3 +337,47 @@ def test_return_to_warehouse_needs_no_description(session, fixture_data):
     issue_instrument(session, instrument.id, fixture_data["site"].id, happened_on=TODAY)
     return_instrument(session, instrument.id, happened_on=TODAY)
     assert instrument.status == "warehouse"
+
+
+def test_approval_is_signed_by_the_one_who_decided(session, fixture_data) -> None:
+    """Перемещение по заявке подписано тем, кто согласовал.
+
+    Найдено приёмкой: операции выдачи и возврата записывались на того,
+    кто ПОДАЛ заявку, — то есть на мастера, которого в системе в этот
+    момент не было вовсе. Для разбора «кто перемещал прибор» такой журнал
+    врёт, а журнал — единственная опора при разборе.
+
+    Кто просил, видно в самой заявке и в примечании к движению: одно
+    другого не заменяет.
+    """
+    from app import audit
+
+    data = fixture_data
+    level = data["instruments"]["level"]
+    issue_instrument(session, level.id, data["site"].id, happened_on=TODAY)
+    request = create_change_request(
+        session,
+        level.id,
+        data["other"].id,
+        "Сидоров С.С., мастер участка",
+        requested_on=TODAY,
+    )
+    approve_change_request(session, request.id, "Иванов И.И.", decided_on=TODAY)
+    session.commit()
+
+    movements = [m for m in level.movements if m.doc_no == f"ЗАЯВКА-{request.id}"]
+    assert len(movements) == 2, "перемещение по заявке не записалось"
+
+    for movement in movements:
+        assert movement.person == "Иванов И.И.", (
+            f"операция подписана «{movement.person}» вместо согласовавшего"
+        )
+        assert "Сидоров" in (movement.notes or ""), (
+            "потерялось, кто подавал заявку"
+        )
+
+    entries = audit.for_object(session, "instrument", level.id)
+    actors = {e.actor for e in entries}
+    assert "Сидоров С.С., мастер участка" not in actors, (
+        "журнал приписал операцию мастеру, которого в системе не было"
+    )

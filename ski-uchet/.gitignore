@@ -11,3 +11,4 @@ backups/
 uploads/
 .secret_key
 logs/
+.claude/settings.local.json

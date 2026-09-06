@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import AUDIT_BUSINESS, AUDIT_SYSTEM, AuditLog
 
@@ -139,3 +139,48 @@ def for_object(
             .limit(limit)
         )
     )
+
+
+def object_titles(session: Session, entries: list[AuditLog]) -> dict[tuple[str, int], str]:
+    """Человеческие названия объектов журнала: ключ — (вид, номер).
+
+    Журнал хранит ссылку парой `object_type` + `object_id` — это верно
+    для базы, но «прибор №13» человеку ничего не говорит. Здесь номера
+    превращаются в то, что человек ищет: «СКИ-013 Склерометр ОМШ-1».
+
+    Одним запросом на каждый вид объекта, а не по запросу на строку:
+    иначе страница на 500 записей сделала бы 500 запросов.
+    """
+    from app.models import ChangeRequest, Instrument, Site, User
+
+    wanted: dict[str, set[int]] = {}
+    for entry in entries:
+        if entry.object_type and entry.object_id:
+            wanted.setdefault(entry.object_type, set()).add(entry.object_id)
+
+    titles: dict[tuple[str, int], str] = {}
+
+    if wanted.get("instrument"):
+        for item in session.scalars(
+            select(Instrument).where(Instrument.id.in_(wanted["instrument"]))
+        ):
+            titles[("instrument", item.id)] = f"{item.inventory_no} {item.name}"
+
+    if wanted.get("site"):
+        for item in session.scalars(select(Site).where(Site.id.in_(wanted["site"]))):
+            titles[("site", item.id)] = item.name
+
+    if wanted.get("user"):
+        for item in session.scalars(select(User).where(User.id.in_(wanted["user"]))):
+            titles[("user", item.id)] = item.display_name or item.login
+
+    if wanted.get("change_request"):
+        for item in session.scalars(
+            select(ChangeRequest)
+            .where(ChangeRequest.id.in_(wanted["change_request"]))
+            .options(selectinload(ChangeRequest.instrument))
+        ):
+            what = item.instrument.inventory_no if item.instrument else "?"
+            titles[("change_request", item.id)] = f"Заявка №{item.id} · {what}"
+
+    return titles

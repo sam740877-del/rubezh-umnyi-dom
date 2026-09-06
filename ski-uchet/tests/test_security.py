@@ -360,7 +360,7 @@ def test_secret_key_is_not_in_the_repository() -> None:
     forbidden = [
         name
         for name in tracked
-        if Path(name).name in (".secret_key", ".env")
+        if Path(name).name in (".secret_key", ".env", "settings.local.json")
         or name.startswith("logs/")
         or name.startswith("storage/")
         or name.startswith("backups/")

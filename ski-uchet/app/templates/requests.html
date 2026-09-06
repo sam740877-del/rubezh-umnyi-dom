@@ -46,11 +46,9 @@
       <td class="small">
         {% if r.is_open %}
           <form method="post" action="/requests/{{ r.id }}/approve" style="margin-bottom:8px">
-            <input type="hidden" name="decided_by" value="{{ APPROVER_TITLE }}">
             <button type="submit">Согласовать</button>
           </form>
           <form method="post" action="/requests/{{ r.id }}/reject">
-            <input type="hidden" name="decided_by" value="{{ APPROVER_TITLE }}">
             <input name="comment" placeholder="Причина отказа — обязательно" required style="margin-bottom:6px">
             <button class="danger" type="submit">Отклонить</button>
           </form>
