@@ -408,3 +408,105 @@ def test_no_light_colours_leak_into_dark_theme(client) -> None:
     лишние = {c.lower() for c in прямые} - {"#d9534f", "#b9c9dc", "#fff"}
 
     assert not лишние, f"цвета мимо палитры — в тёмной теме станут пятнами: {лишние}"
+
+
+# --------------------------------------------------------------------------
+# Защита от кривого ввода
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/instruments?type_id=абв",
+        "/instruments?site_id=--",
+        "/instruments?type_id=-5",
+        "/instruments?type_id=999999999999999999999",
+        "/warehouse?type_id=x",
+        "/movements?site_id=нет",
+        "/movements?instrument_id=1;DROP TABLE",
+        "/verifications?days=абв",
+        "/verifications?days=-100",
+        "/verifications?days=99999999999",
+        "/audit?audit_type=выдуманный",
+        "/instruments/0",
+        "/instruments/999999",
+        "/sites/-1",
+    ],
+)
+def test_broken_input_does_not_crash(client, url) -> None:
+    """Кривое значение в адресе не роняет страницу.
+
+    Правило донора (БПО, `core/settings.py`): «испорченное руками значение
+    должно превращаться в значение по умолчанию, а не в падение программы».
+
+    Найдено запуском, а не догадкой: четыре страницы отдавали пятисотую
+    ошибку от одной буквы в адресе. Букву наберут случайно, скопируют
+    из письма с переносом строки или подставят нарочно — во всех трёх
+    случаях человек должен увидеть страницу, а не поломку.
+    """
+    response = client.get(url)
+
+    assert response.status_code < 500, (
+        f"страница упала от кривого значения: {response.status_code}"
+    )
+    # И не голым JSON, как отвечал FastAPI на неразобранное число.
+    assert "detail" not in response.text[:120], (
+        "вместо страницы показаны внутренности"
+    )
+
+
+def test_settings_are_editable(client, session) -> None:
+    """Горизонт предупреждения правится, а не зашит числом.
+
+    Прежде 30 дней стояло константой в двух файлах — `services` и
+    `notifications`. Два места с одним смыслом уже начинали разъезжаться,
+    а вопрос заказчику «за сколько дней предупреждать» открыт с самого
+    начала. Правильный ответ на него — не число, а настройка.
+    """
+    from app import settings as app_settings
+
+    assert app_settings.warn_days(session) == 30, "не то значение по умолчанию"
+
+    response = client.post(
+        "/settings",
+        data={"warn_days": "45", "backup_interval_days": "1", "company_name": ""},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    session.expire_all()
+
+    assert app_settings.warn_days(session) == 45, "настройка не сохранилась"
+
+
+def test_broken_setting_falls_back_to_default(client, session) -> None:
+    """Испорченная настройка не роняет систему.
+
+    Значение могли править руками в базе. Буквы вместо числа — не повод
+    отказать в работе: «настройка не то место, ради которого клиент
+    останется без программы».
+    """
+    from app import settings as app_settings
+
+    app_settings.set_value(session, app_settings.WARN_DAYS, "месяц")
+    session.commit()
+
+    assert app_settings.warn_days(session) == 30, "кривое значение не заменилось"
+    assert client.get("/verifications").status_code == 200
+    assert client.get("/").status_code == 200
+
+
+def test_absurd_setting_is_refused_with_explanation(client) -> None:
+    """Бессмысленное значение не принимается, и человеку сказано почему.
+
+    Молча взять умолчание за спиной у человека — хуже отказа: он решит,
+    что сохранил, и уйдёт.
+    """
+    response = client.post(
+        "/settings",
+        data={"warn_days": "-40", "backup_interval_days": "1", "company_name": ""},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert "err=" in response.headers["location"], "отказ прошёл молча"

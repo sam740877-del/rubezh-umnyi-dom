@@ -726,3 +726,26 @@ class BotInvite(Base):
     @property
     def is_used(self) -> bool:
         return self.used_at is not None
+
+
+class Setting(Base):
+    r"""Настройка, которую правит человек в интерфейсе.
+
+    Устройство взято у БПО (`C:\bpo\core\settings.py`). Там две таблицы
+    с разным смыслом: `settings` — то, что клиент видит и правит,
+    `app_config` — служебные отметки, которые в настройках видеть незачем.
+    У нас пока только первая: служебного состояния, которое стоило бы
+    хранить в базе, ещё нет.
+
+    Значение хранится СТРОКОЙ. Не потому, что лень завести типы, а потому,
+    что настройки правят и руками в базе, и разные настройки разного рода:
+    число дней, признак «да/нет», текст. Приведение к типу — при чтении,
+    и оно никогда не роняет программу.
+    """
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    changed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    changed_by: Mapped[str | None] = mapped_column(String(160))

@@ -46,11 +46,13 @@ from app.models import (
     User,
 )
 
-#: За сколько дней до конца поверки предупреждаем. Пока то же число, что
-#: и на экранах (WARN_DAYS в services). Вопрос 16 заказчику ещё открыт:
-#: «за сколько дней прибор должен попадать в предупреждение» — когда
-#: ответят, порог станет настройкой, а не константой.
-WARN_DAYS = 30
+#: Горизонт предупреждения теперь ЖИВЁТ В НАСТРОЙКАХ, а не здесь.
+#: Прежде это число стояло константой и тут, и в `services` — два места
+#: с одним смыслом уже начинали разъезжаться.
+#:
+#: Вопрос 16 заказчику («за сколько дней предупреждать») можно было ждать
+#: месяцами. Правильный ответ на него — не число, а настройка: метролог
+#: сам знает свой срок, и у разных контор он разный.
 
 #: Роли, которым идут напоминания о поверках. Ответ на вопрос 57: «оба» —
 #: главный инженер и руководитель строительного контроля. Роли руководителя
@@ -174,7 +176,7 @@ def _verification_text(instrument: Instrument, valid_until: date, today: date) -
 
 
 def scan_verifications(
-    session: Session, today: date | None = None, warn_days: int = WARN_DAYS
+    session: Session, today: date | None = None, warn_days: int | None = None
 ) -> int:
     """Пройти по парку и создать уведомления о поверках.
 
@@ -184,9 +186,12 @@ def scan_verifications(
 
     Возвращает число созданных записей.
     """
+    from app import settings as настройки
     from app.services import verification_state
 
     today = today or date.today()
+    if warn_days is None:
+        warn_days = настройки.warn_days(session)
     created = 0
 
     instruments = session.scalars(

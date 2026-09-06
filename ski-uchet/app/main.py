@@ -33,6 +33,7 @@ from app import (
     security,
     services,
     session_cookie,
+    settings as app_settings,
 )
 from app.database import get_session, init_db
 from app.models import (
@@ -99,19 +100,59 @@ templates.env.globals.update(
 def parse_date(value: str | None, default: date | None = None) -> date | None:
     if not value:
         return default
-    return datetime.strptime(value.strip(), "%Y-%m-%d").date()
+    try:
+        return datetime.strptime(value.strip(), "%Y-%m-%d").date()
+    except ValueError:
+        # Кривая дата — не повод ронять страницу. Поле останется пустым,
+        # а человек увидит это и поправит.
+        return default
 
 
 def parse_decimal(value: str | None) -> float | None:
+    """Дробное число из формы. Кривое значение — пусто, а не падение."""
     if value is None or not value.strip():
         return None
-    return float(value.replace(",", ".").replace(" ", ""))
+    try:
+        return float(value.replace(",", ".").replace(" ", ""))
+    except ValueError:
+        return None
 
 
 def parse_int(value: str | None) -> int | None:
+    """Целое из формы. Кривое значение — пусто, а не падение."""
     if value is None or not value.strip():
         return None
-    return int(value)
+    try:
+        return int(value.strip())
+    except ValueError:
+        return None
+
+
+def filter_id(value: str | None) -> int | None:
+    r"""Ссылка на запись из АДРЕСНОЙ СТРОКИ — то есть от человека.
+
+    Правило донора (БПО, `core/settings.py`): «испорченное руками
+    значение должно превращаться в значение по умолчанию, а не в падение
+    программы». Здесь умолчание — «фильтра нет».
+
+    Пойман запуском: `/instruments?type_id=абв` роняло страницу пятисотой
+    ошибкой. Букву в адресе наберут случайно, скопируют из письма
+    с переносом строки или подставят нарочно — во всех трёх случаях
+    человек должен увидеть список, а не поломку.
+    """
+    if value is None or not str(value).strip():
+        return None
+    try:
+        число = int(str(value).strip())
+    except ValueError:
+        return None
+    # Отрицательных и нулевых ссылок не бывает: первичный ключ с единицы.
+    # Верхняя граница — предел целого в базе: `999999999999999999999`
+    # разбирается как число, но роняет запрос при подстановке.
+    # Пойман запуском, а не догадкой.
+    if число <= 0 or число > 2_147_483_647:
+        return None
+    return число
 
 
 def redirect(url: str, *, msg: str | None = None, err: str | None = None) -> RedirectResponse:
@@ -720,8 +761,8 @@ def bot_invite_create(
     try:
         invite = bot.create_invite(
             db,
-            site_id=int(site_id) if site_id else None,
-            user_id=int(user_id) if user_id else None,
+            site_id=filter_id(site_id),
+            user_id=filter_id(user_id),
             intended_for=intended_for,
             created_by=actor.name,
         )
@@ -822,6 +863,65 @@ def import_apply(
     return redirect("/instruments", msg=message)
 
 
+# --------------------------------------------------------------------------
+# Настройки
+# --------------------------------------------------------------------------
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_view(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Настройки системы. Правит администратор."""
+    return render(request, "settings.html", settings=app_settings.all_settings(db))
+
+
+@app.post("/settings")
+async def settings_save(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Сохранить настройки.
+
+    Значения принимаются как есть и проверяются при ЧТЕНИИ — правило
+    донора: испорченное значение превращается в умолчание, а не в отказ.
+    Здесь же отсекается заведомо бессмысленное, чтобы человек увидел это
+    сразу, а не гадал, почему ничего не изменилось.
+    """
+    форма = await request.form()
+    поправлено = []
+
+    for ключ in app_settings.DEFAULTS:
+        if ключ not in форма:
+            continue
+        значение = str(форма[ключ]).strip()
+
+        # Числовые настройки проверяем на месте: сказать «не приняли»
+        # честнее, чем молча взять умолчание за спиной у человека.
+        if ключ in (app_settings.WARN_DAYS, app_settings.BACKUP_INTERVAL_DAYS):
+            try:
+                число = int(значение)
+                if число < 0 or число > 3650:
+                    raise ValueError
+            except ValueError:
+                поправлено.append(app_settings.DEFAULTS[ключ][1])
+                continue
+
+        app_settings.set_value(db, ключ, значение, actor=actor.name)
+
+    db.commit()
+    if поправлено:
+        return redirect(
+            "/settings",
+            err="Не приняты (нужно целое число от 0 до 3650): "
+            + ", ".join(поправлено),
+        )
+    return redirect("/settings", msg="Настройки сохранены")
+
+
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:
     """CSV с BOM и «;» — открывается в Excel без плясок с кодировкой."""
     buffer = io.StringIO()
@@ -860,7 +960,7 @@ def warehouse_view(
     db: Session = Depends(get_session),
 ):
     """Склад: что лежит и что из этого готово к выдаче."""
-    report = services.warehouse_report(db, type_id=int(type_id) if type_id else None)
+    report = services.warehouse_report(db, type_id=filter_id(type_id))
 
     rows = report.rows
     if only == "ready":
@@ -906,9 +1006,9 @@ def instruments_list(
     if status:
         query = query.where(Instrument.status == status)
     if type_id:
-        query = query.where(Instrument.type_id == int(type_id))
+        query = query.where(Instrument.type_id == filter_id(type_id))
     if site_id:
-        query = query.where(Instrument.current_site_id == int(site_id))
+        query = query.where(Instrument.current_site_id == filter_id(site_id))
 
     items = db.scalars(query.order_by(Instrument.inventory_no)).all()
     if problem:
@@ -1533,9 +1633,20 @@ def type_create(
 
 
 @app.get("/verifications", response_class=HTMLResponse)
-def verifications_view(request: Request, days: int = 60, db: Session = Depends(get_session)):
-    rows = services.expiring_instruments(db, days=days)
-    return render(request, "verifications.html", rows=rows, days=days)
+def verifications_view(request: Request, days: str = "", db: Session = Depends(get_session)):
+    """Календарь поверок.
+
+    Горизонт принимается СТРОКОЙ и разбирается сами. С `days: int` FastAPI
+    отвергал букву кодом 422 и голым JSON — тем же, что раньше показывала
+    несуществующая страница. Человек набрал «абв» в адресе и увидел
+    внутренности вместо календаря.
+    """
+    горизонт = filter_id(days) or 60
+    # Год вперёд — предел разумного: дальше в списке окажется весь парк,
+    # и календарь перестанет отвечать на вопрос «что горит сейчас».
+    горизонт = min(горизонт, 365)
+    rows = services.expiring_instruments(db, days=горизонт)
+    return render(request, "verifications.html", rows=rows, days=горизонт)
 
 
 @app.get("/movements", response_class=HTMLResponse)
@@ -1549,9 +1660,9 @@ def movements_view(
         selectinload(Movement.instrument), selectinload(Movement.site)
     )
     if site_id:
-        query = query.where(Movement.site_id == int(site_id))
+        query = query.where(Movement.site_id == filter_id(site_id))
     if instrument_id:
-        query = query.where(Movement.instrument_id == int(instrument_id))
+        query = query.where(Movement.instrument_id == filter_id(instrument_id))
     movements = db.scalars(
         query.order_by(Movement.happened_on.desc(), Movement.id.desc()).limit(500)
     ).all()

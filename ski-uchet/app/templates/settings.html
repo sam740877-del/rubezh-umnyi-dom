@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Настройки — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Настройки системы</h1>
+<p class="sub">То, что зависит от порядков вашей конторы, а не от программы.</p>
+
+<div class="panel">
+  <form method="post" action="/settings">
+    {% for s in settings %}
+    <div class="field wide" style="margin-bottom:18px">
+      <label style="font-size:14px; color:var(--text)">{{ s.title }}</label>
+      <input name="{{ s.key }}" value="{{ s.value }}" style="max-width:420px">
+      <p class="small muted" style="margin:6px 0 0">{{ s.note }}
+        {% if s.value != s.default %}<br>По умолчанию: {{ s.default or '—' }}.{% endif %}
+        {% if s.changed_at %}<br>Изменено {{ s.changed_at.strftime('%d.%m.%Y') }}{%
+          if s.changed_by %}, {{ s.changed_by }}{% endif %}.{% endif %}
+      </p>
+    </div>
+    {% endfor %}
+    <div class="btn-row"><button type="submit">Сохранить</button></div>
+  </form>
+  <p class="small muted" style="margin-top:14px">
+    Непонятное значение система не примет: вместо него останется прежнее.
+    Настройка — не то место, ради которого стоит остаться без программы.
+  </p>
+</div>
+{% endblock %}

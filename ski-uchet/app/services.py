@@ -23,7 +23,11 @@ from app.models import (
     Verification,
 )
 
-WARN_DAYS = 30  # за сколько дней до конца поверки прибор считается «истекающим»
+#: Горизонт предупреждения по умолчанию. Настоящее значение живёт
+#: в настройках (`app/settings.py`) — метролог правит его сам, у разных
+#: контор срок разный. Здесь остаётся то, с чего система начинает
+#: на пустой базе, и то, что берётся при вызове без сессии.
+WARN_DAYS = 30
 
 #: Состояния поверки, при которых выдача запрещена без особой отметки.
 #: Держим одной константой, чтобы экран склада и сама операция выдачи
@@ -154,10 +158,19 @@ def add_verification(
 
 
 def expiring_instruments(
-    session: Session, days: int = WARN_DAYS, today: date | None = None
+    session: Session, days: int | None = None, today: date | None = None
 ) -> list[tuple[Instrument, VerificationState]]:
-    """Приборы с просроченной, истекающей или отсутствующей поверкой."""
+    """Приборы с просроченной, истекающей или отсутствующей поверкой.
+
+    Горизонт не назвали — берём из настроек: метролог правит его сам,
+    и у разных контор срок разный. Прежде число 30 стояло константой
+    в двух файлах и уже начинало разъезжаться.
+    """
+    from app import settings as настройки
+
     today = today or date.today()
+    if days is None:
+        days = настройки.warn_days(session)
     instruments = session.scalars(
         select(Instrument)
         .options(selectinload(Instrument.type), selectinload(Instrument.verifications), selectinload(Instrument.current_site))
