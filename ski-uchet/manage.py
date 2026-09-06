@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -74,8 +75,48 @@ def cmd_run(args: argparse.Namespace) -> None:
     import uvicorn
 
     init_db()
-    print(f"Откройте в браузере: http://{args.host}:{args.port}")
-    uvicorn.run("app.main:app", host=args.host, port=args.port, reload=args.reload)
+
+    # Площадки размещения (Render и подобные) сами говорят, на каком порту
+    # и адресе слушать, — через переменные окружения. Читаем их, но
+    # аргументы командной строки главнее: они назывались явно.
+    host = args.host
+    port = args.port
+    if host == "127.0.0.1" and os.environ.get("PORT"):
+        # Порт от площадки означает, что мы не на своём компьютере:
+        # слушать только localhost там бессмысленно, снаружи не достучаться.
+        host = os.environ.get("HOST", "0.0.0.0")
+        port = int(os.environ["PORT"])
+
+    _seed_demo_if_asked()
+
+    print(f"Откройте в браузере: http://{host}:{port}")
+    uvicorn.run("app.main:app", host=host, port=port, reload=args.reload)
+
+
+def _seed_demo_if_asked() -> None:
+    """Налить демонстрационные данные, если так велено окружением.
+
+    Нужно для показа на площадке размещения: диск там пересоздаётся при
+    каждом развёртывании, и пустая система показывала бы пустые экраны.
+
+    Включается переменной `SKI_SEED_DEMO=1` и работает только на ПУСТОЙ
+    базе: иначе повторное развёртывание затирало бы то, что успели
+    наработать во время показа.
+    """
+    if os.environ.get("SKI_SEED_DEMO", "").strip() not in ("1", "true", "yes"):
+        return
+
+    from app.database import session_scope
+    from app.models import Instrument
+    from app.seed import seed_demo
+    import sqlalchemy as sa
+
+    with session_scope() as session:
+        if session.scalar(sa.select(sa.func.count(Instrument.id))):
+            print("База не пуста — демо-данные не наливаем.")
+            return
+        seed_demo(session)
+        print("Налиты демонстрационные данные.")
 
 
 
