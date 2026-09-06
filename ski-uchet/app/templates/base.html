@@ -7,16 +7,9 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+{% if user %}
 <header class="top">
-  <div class="brandline">
-    <span class="brand">Учёт СКИ</span>
-    {% if user %}
-    <div class="whoami">
-      <span title="{{ user.login }}">{{ user.title }}</span>
-      <a href="/logout" class="logout">Выйти</a>
-    </div>
-    {% endif %}
-  </div>
+  <span class="brand">Учёт СКИ</span>
   <nav>
     {# Подсветка открытого раздела: `section` считает render() по первому
        куску пути, поэтому карточка прибора подсвечивает «Приборы».
@@ -31,15 +24,22 @@
     <a href="/contracts" class="{{ 'active' if section == 'contracts' }}">Договоры</a>
     <a href="/verifications" class="{{ 'active' if section == 'verifications' }}">Поверки</a>
     <a href="/movements" class="{{ 'active' if section == 'movements' }}">Журнал движения</a>
-    {% if not user or user.can('audit.view') %}
+    {% if user.can('audit.view') %}
     <a href="/audit" class="{{ 'active' if section == 'audit' }}">Журнал действий</a>
     {% endif %}
     <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
-    {% if user and user.can('user.manage') %}
+    {% if user.can('user.manage') %}
     <a href="/users" class="{{ 'active' if section == 'users' }}">Пользователи</a>
     {% endif %}
   </nav>
+  {# Подпись вошедшего и выход — у правого края. «Выйти» рядом с разделами
+     ловило бы случайные нажатия. #}
+  <div class="whoami">
+    <span title="{{ user.login }}">{{ user.title }}</span>
+    <a href="/logout" class="logout">Выйти</a>
+  </div>
 </header>
+{% endif %}
 <main>
   {% if msg %}<div class="flash msg">{{ msg }}</div>{% endif %}
   {% if err %}<div class="flash err">{{ err }}</div>{% endif %}

@@ -22,17 +22,31 @@ a:hover { text-decoration: underline; }
 header.top {
   background: #16324f;
   color: #fff;
-  padding: 10px 20px;
+  padding: 7px 18px;
   display: flex;
   align-items: center;
-  gap: 22px;
-  flex-wrap: wrap;
+  gap: 18px;
+  /* Одна строка вместо двух: разделы сжимаются и при нехватке места
+     прокручиваются вбок. Полоса высотой в две строки съедала верх
+     экрана на каждой странице ради того, что и так помещается. */
+  flex-wrap: nowrap;
 }
 header.top .brand { font-weight: 700; font-size: 17px; letter-spacing: .3px; }
-header.top nav { display: flex; gap: 6px; flex-wrap: wrap; }
+header.top nav {
+  display: flex;
+  gap: 3px;
+  /* Разделы не переносятся, а прокручиваются: на узком экране лучше
+     проскроллить полосу, чем отдать ей половину высоты окна. */
+  flex: 1 1 auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+header.top nav::-webkit-scrollbar { height: 4px; }
+header.top nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 2px; }
 header.top nav a {
   color: #cfe0f2;
-  padding: 5px 10px;
+  padding: 4px 9px;
+  white-space: nowrap;
   border-radius: 5px;
   /* Подложка прозрачна, но объявлена: иначе переход на наведении
      стартует с пустоты и мигает. */
@@ -126,18 +140,9 @@ details.form-block summary { cursor: pointer; font-weight: 600; color: var(--acc
 
 /* Подпись вошедшего прижата вправо: имя и роль всегда на виду, чтобы
    человек не гадал, под кем работает. */
-/* Название и подпись вошедшего — одна строка на всю ширину шапки.
-   Раньше подпись стояла после навигации с `margin-left:auto`, но при
-   переносе разделов на вторую строку она падала вниз отдельной строкой:
-   прижимать вправо было уже нечем. */
-header.top .brandline {
-  width: 100%;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
+header.top .brand { flex: 0 0 auto; }
 header.top .whoami {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 12px;
