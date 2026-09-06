@@ -323,14 +323,22 @@ def test_menus_open_by_click_not_only_hover(client) -> None:
     и без правила `.menu.open` нажатие снова станет пустым.
     """
     page = client.get("/").text
+    css = client.get("/static/style.css").text
 
     assert "menu > button" in page or ".menu > button" in page, (
         "нет обработчика нажатия по кнопкам списков"
     )
     assert "classList.toggle('open')" in page, "нажатие не переключает список"
-    assert "Escape" in page, "список не закрывается по Escape"
 
-    css = client.get("/static/style.css").text
+    # Раскрытия по наведению быть НЕ ДОЛЖНО: два способа спорили друг
+    # с другом. Escape снимал класс, но список висел, пока курсор
+    # оставался над кнопкой; наведение раскрывало список само; а если
+    # открыть один кнопкой и провести мышью над соседним, оба
+    # показывались разом и накладывались.
+    assert ".menu:hover .drop" not in css, (
+        "осталось раскрытие по наведению — оно спорит с раскрытием по нажатию"
+    )
+    assert "Escape" in page, "список не закрывается по Escape"
     assert ".menu.open .drop" in css, (
         "в стилях нет правила для раскрытого списка — нажатие ничего не покажет"
     )

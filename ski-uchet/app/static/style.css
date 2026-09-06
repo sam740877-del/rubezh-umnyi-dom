@@ -141,7 +141,33 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .3px; }
 tr:last-child td { border-bottom: none; }
-.table-wrap { overflow-x: auto; }
+/* Широкая таблица прокручивается вбок — но так, чтобы это было ВИДНО.
+   Приёмка: на 900 точках таблица приборов (878) не влезала в обёртку
+   (843), колонка «Состояние поверки» уходила под край, а полосы прокрутки
+   не было видно, пока не наведёшь мышь. Человек считал, что данные
+   обрезаны, и не догадывался прокрутить.
+
+   Полоса теперь видна всегда, а тень у правого края подсказывает,
+   что там ещё есть содержимое. */
+.table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  background:
+    linear-gradient(to right, var(--panel) 30%, transparent),
+    linear-gradient(to left, var(--panel) 30%, transparent) right,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .12), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .12), transparent) right;
+  background-repeat: no-repeat;
+  background-size: 36px 100%, 36px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+.table-wrap::-webkit-scrollbar { height: 8px; }
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
 
 .badge {
   display: inline-block; padding: 2px 8px; border-radius: 20px;
@@ -326,10 +352,16 @@ header.top nav .menu .drop {
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
 }
-/* Раскрывается и по наведению, и по НАЖАТИЮ. Только наведения мало:
-   на кнопку тянутся нажать, а на телефоне и планшете наведения нет
-   вовсе — там списки были бы недоступны совсем. */
-header.top nav .menu:hover .drop,
+/* Раскрывается ТОЛЬКО по нажатию. Раскрытие по наведению убрано:
+   два способа спорили друг с другом, и приёмка нашла три следствия.
+
+   Escape снимал класс `open`, но список висел, пока курсор оставался
+   над кнопкой. Наведение раскрывало список само, без нажатия. А если
+   открыть один кнопкой и провести мышью над соседним, оба показывались
+   разом и накладывались друг на друга.
+
+   Наведения нет на телефоне и планшете вовсе, так что оно и не могло
+   быть основным способом — только помехой. */
 header.top nav .menu.open .drop { display: block; }
 
 header.top nav .menu .drop a {
@@ -378,14 +410,35 @@ header.top nav .menu .drop a:hover {
      ровно столько — прячем название системы (человек и так знает, где
      он) и жмём отступы. Раздел, до которого нельзя добраться, — дефект,
      даже если видны семь из восьми. */
-  header.top .brand { display: none; }
+  /* Название НЕ прячем: flex сжимал его в нулевую ширину, и человек
+     на узком экране не видел, в какой он системе. Прежде разделов было
+     пятнадцать и место приходилось отбирать; теперь их восемь, и хватает
+     сжатия отступов. */
+  header.top .brand { flex: 0 0 auto; }
   header.top nav a, header.top nav .menu > button { padding: 4px 6px; }
   header.top { gap: 8px; }
 }
 
 @media (max-width: 820px) {
-  /* Совсем узко — подписи нет, остаётся только «Выйти». Кто вошёл,
-     видно по тому, какие разделы доступны. */
+  /* Совсем узко — прячем название системы и жмём отступы. Замер на 768:
+     после скрытия названия не хватало ещё 17 точек, их дают отступы
+     между разделами.
+
+     Порядок жертв: сперва имя пользователя, потом название системы,
+     потом отступы. Разделы — никогда: раздел, до которого нельзя
+     добраться, хуже любой убранной надписи. */
+  header.top .brand { display: none; }
+  header.top { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  header.top nav { gap: 1px; }
+  header.top nav a, header.top nav .menu > button { padding: 4px 5px; }
+}
+
+@media (max-width: 1000px) {
+  /* Имя пользователя прячется РАНЬШЕ названия системы. Замер на 900:
+     навигации нужно 656 точек, а подпись занимала 212 — разделы лезли
+     под неё и накладывались. Название системы важнее: человек должен
+     видеть, где он, а кто он — знает и так. Остаются значок темы
+     и «Выйти». */
   header.top .whoami > span { display: none; }
 }
 
