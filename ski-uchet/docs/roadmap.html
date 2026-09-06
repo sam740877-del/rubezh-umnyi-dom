@@ -1,0 +1,994 @@
+<title>Дорожная карта СКИ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=PT+Sans:ital,wght@0,400;0,700;1,400&family=PT+Mono&display=swap">
+<style>
+  :root {
+    --paper: #e8ebe7;
+    --surface: #f7f8f5;
+    --surface-2: #eef1ec;
+    --ink: #1b2430;
+    --muted: #5d6873;
+    --rule: #ccd3cb;
+    --rule-soft: #dde2db;
+    --accent: #a8500d;
+    --accent-soft: #f0e2d2;
+    --crit: #97231f;
+    --crit-soft: #f3ddda;
+    --ok: #2c6544;
+    --ok-soft: #dbe9df;
+    --field: #ffffff;
+    --shadow: 0 1px 2px rgba(27, 36, 48, .06);
+
+    --f-display: "Oswald", "Arial Narrow", sans-serif;
+    --f-body: "PT Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mono: "PT Mono", ui-monospace, "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141a1f;
+      --surface: #1c242a;
+      --surface-2: #222b31;
+      --ink: #e4e9e5;
+      --muted: #94a1a6;
+      --rule: #2f3a41;
+      --rule-soft: #262f35;
+      --accent: #dd8b3e;
+      --accent-soft: #382718;
+      --crit: #e28079;
+      --crit-soft: #3a2220;
+      --ok: #74b995;
+      --ok-soft: #1d3128;
+      --field: #161d22;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141a1f;
+    --surface: #1c242a;
+    --surface-2: #222b31;
+    --ink: #e4e9e5;
+    --muted: #94a1a6;
+    --rule: #2f3a41;
+    --rule-soft: #262f35;
+    --accent: #dd8b3e;
+    --accent-soft: #382718;
+    --crit: #e28079;
+    --crit-soft: #3a2220;
+    --ok: #74b995;
+    --ok-soft: #1d3128;
+    --field: #161d22;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 96px; }
+
+  /* ---------- шапка ---------- */
+  .masthead { padding: 52px 0 30px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--f-display); font-weight: 600; font-size: clamp(38px, 8vw, 62px);
+    line-height: 1.02; letter-spacing: -.005em; margin: 0 0 14px; text-wrap: balance;
+  }
+  .standfirst { font-size: 18px; color: var(--muted); margin: 0; max-width: 60ch; }
+
+  .facts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    margin: 26px 0 0;
+  }
+  .fact { background: var(--surface); padding: 14px 16px; }
+  .fact b {
+    display: block; font-family: var(--f-display); font-weight: 500;
+    font-size: 27px; line-height: 1.1; font-variant-numeric: tabular-nums;
+  }
+  .fact span {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .fact.is-done b { color: var(--ok); }
+  .fact.is-crit b { color: var(--crit); }
+
+  /* ---------- секции ---------- */
+  section { padding-top: 48px; }
+  h2 {
+    font-family: var(--f-display); font-weight: 500; font-size: 13px;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+    margin: 0 0 20px; padding-bottom: 9px; border-bottom: 1px solid var(--rule);
+  }
+  h3 {
+    font-family: var(--f-display); font-weight: 500; font-size: 25px;
+    line-height: 1.15; margin: 0 0 8px; text-wrap: balance;
+  }
+  p { margin: 0 0 14px; max-width: 66ch; }
+  p:last-child { margin-bottom: 0; }
+
+  .done-panel { background: var(--surface); border: 1px solid var(--rule); padding: 22px 24px; }
+  .rules { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 9px; }
+  .rules li { padding-left: 26px; position: relative; font-size: 15.5px; }
+  .rules li::before {
+    content: "✓"; position: absolute; left: 0; top: -1px;
+    color: var(--ok); font-weight: 700;
+  }
+
+  /* ---------- рейка этапов ---------- */
+  .stages { display: grid; gap: 0; }
+  .stage {
+    display: grid; grid-template-columns: 62px 1fr; gap: 0;
+    border-left: 1px solid var(--rule);
+  }
+  .stage-mark { position: relative; }
+  /* штрихи как на нивелирной рейке */
+  .stage-mark::before {
+    content: ""; position: absolute; left: -1px; top: 0; bottom: 0; width: 9px;
+    background: repeating-linear-gradient(
+      to bottom, var(--rule-soft) 0 1px, transparent 1px 12px);
+  }
+  .stage-no {
+    position: relative; display: inline-block; margin: 18px 0 0 -14px;
+    background: var(--paper); padding: 4px 0 4px 14px;
+    font-family: var(--f-display); font-weight: 500; font-size: 22px;
+    line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent);
+  }
+  .stage-body { padding: 20px 0 34px 12px; }
+  .stage:last-child .stage-body { padding-bottom: 8px; }
+  .goal { color: var(--muted); font-style: italic; margin-bottom: 12px; }
+  .stage ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .stage li { font-size: 15.5px; }
+  .blockers {
+    margin-top: 14px; font-family: var(--f-mono); font-size: 12.5px;
+    color: var(--crit); background: var(--crit-soft);
+    display: inline-block; padding: 4px 10px;
+  }
+  .stage.is-done .stage-no { color: var(--ok); }
+  .stage.is-done h3 { color: var(--ok); }
+
+  /* ---------- вопросы ---------- */
+  .q-intro { background: var(--surface-2); border-left: 3px solid var(--accent); padding: 16px 20px; margin-bottom: 26px; }
+  .q-group { margin-bottom: 34px; }
+  .q-group > h3 { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .q-group > h3 .g-no { font-family: var(--f-mono); font-size: 13px; color: var(--accent); }
+
+  .q {
+    background: var(--surface); border: 1px solid var(--rule);
+    box-shadow: var(--shadow); padding: 15px 17px; margin-bottom: 10px;
+  }
+  .q.is-blocker { border-left: 3px solid var(--crit); }
+  .q-head { display: flex; gap: 11px; align-items: baseline; }
+  .q-no {
+    font-family: var(--f-mono); font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums; flex: 0 0 auto; padding-top: 1px;
+  }
+  .q-text { flex: 1 1 auto; font-size: 15.5px; }
+  .chip {
+    font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; padding: 2px 7px; white-space: nowrap;
+    background: var(--crit-soft); color: var(--crit); align-self: flex-start;
+  }
+  textarea {
+    display: block; width: 100%; margin-top: 11px; box-sizing: border-box;
+    font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+    color: var(--ink); background: var(--field);
+    border: 1px solid var(--rule); border-radius: 0; padding: 9px 11px;
+    min-height: 42px; resize: vertical;
+  }
+  textarea::placeholder { color: var(--muted); opacity: .75; }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .opt {
+    font-family: var(--f-body); font-size: 14.5px; line-height: 1.35;
+    padding: 7px 12px; border: 1px solid var(--rule); background: var(--field);
+    color: var(--ink); cursor: pointer; text-align: left; border-radius: 0;
+    display: inline-flex; gap: 8px; align-items: baseline; max-width: 100%;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .opt[aria-pressed="true"] {
+    background: var(--accent-soft); border-color: var(--accent); font-weight: 700;
+  }
+  .opt .k { font-family: var(--f-mono); font-size: 12px; color: var(--accent); flex: 0 0 auto; }
+  .opt-hint {
+    font-family: var(--f-mono); font-size: 11px; color: var(--muted);
+    margin-top: 10px; letter-spacing: .04em;
+  }
+  .q-status {
+    font-family: var(--f-mono); font-size: 11px; color: var(--muted);
+    margin-top: 6px; min-height: 15px; letter-spacing: .04em;
+  }
+  .q-status.is-saved { color: var(--ok); }
+  .q.is-answered { border-left: 3px solid var(--ok); }
+
+  /* счётчик */
+  .counter {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--paper); border-bottom: 1px solid var(--rule);
+    padding: 11px 0; margin-bottom: 22px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .counter b { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .meter { flex: 1 1 120px; height: 6px; background: var(--rule-soft); border: 1px solid var(--rule); min-width: 100px; }
+  .meter > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+  .sync { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+
+  /* ---------- решения и риски ---------- */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 14px 11px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); font-weight: 400;
+  }
+  td:first-child { font-weight: 700; padding-right: 22px; min-width: 190px; }
+
+  .risks { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+  .risks li { border-left: 3px solid var(--accent); padding: 2px 0 2px 15px; }
+  .risks b { display: block; font-family: var(--f-display); font-weight: 500; font-size: 18px; }
+  .risks span { font-size: 15px; color: var(--muted); }
+
+  footer {
+    margin-top: 56px; padding-top: 18px; border-top: 2px solid var(--ink);
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--muted);
+    letter-spacing: .05em;
+  }
+
+  @media (max-width: 560px) {
+    .stage { grid-template-columns: 34px 1fr; }
+    .stage-mark::before { width: 6px; }
+    .stage-no { margin-left: -10px; padding-left: 10px; }
+    td:first-child { min-width: 130px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .meter > i { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Строительный контроль · метрология</p>
+    <h1>Дорожная карта СКИ</h1>
+    <p class="standfirst">Система учёта средств контроля и измерений: что уже работает,
+      что делаем дальше и какие вопросы нужно закрыть, чтобы двигаться правильно.</p>
+    <div class="facts">
+      <div class="fact is-done"><b>Этап 0</b><span>ядро готово</span></div>
+      <div class="fact is-done"><b>42 из 57</b><span>вопросов закрыто</span></div>
+      <div class="fact"><b>7</b><span>этапов впереди</span></div>
+      <div class="fact is-crit"><b>4</b><span>по документам</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Где мы сейчас</h2>
+    <div class="done-panel">
+      <h3>Этап 0. Ядро системы — готово</h3>
+      <p>Работающее приложение с базой данных: реестр приборов по инвентарным номерам,
+        договоры и участки, комплект по договору с автоматической сверкой
+        «требуется → факт», поверки с расчётом сроков по межповерочному интервалу,
+        журнал выдачи и возврата, выгрузки в Excel. Интерфейс принят как верный,
+        правим по ходу работы.</p>
+      <p>Правила учёта зашиты в программу, а не в инструкцию — обойти их случайно нельзя:</p>
+      <ul class="rules">
+        <li>прибор нельзя выдать на второй участок, пока не оформлен возврат;</li>
+        <li>прибор в ремонте, на поверке или списанный выдать нельзя;</li>
+        <li>прибор с просроченной поверкой выдать нельзя — только с явной отметкой;</li>
+        <li>брак по поверке снимает прибор с участка и отправляет в ремонт;</li>
+        <li>статус «на участке» ставится только через операцию выдачи, руками — никак.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Что изменилось после ваших ответов</h2>
+    <div class="done-panel">
+      <p>Ответы от 5 сентября меняют не сроки, а устройство системы. Четыре следствия:</p>
+      <ul class="rules">
+        <li><b>Не один компьютер, а сервер в интернете.</b> Файловая база SQLite и «всё локально»
+          отменяются: нужен PostgreSQL, домен, HTTPS. Этап с авторизацией поднят с четвёртого
+          места на второе — встраивать вход и роли в уже наполненную базу дороже, чем сразу.</li>
+        <li><b>Роли, включая мастеров участков.</b> Значит, нужны разграничение видимости
+          (мастер видит свой участок, а не весь парк) и журнал действий. А работа с телефона
+          перестаёт быть пунктом «на вырост» — это рабочий сценарий мастера.</li>
+        <li><b>Сканы не только по поверкам.</b> Вложения делаем общим механизмом: файл можно
+          приложить к прибору, к поверке, к акту выдачи, к договору.</li>
+        <li><b>Комплекты повторяются и закреплены приложением к договору.</b> Добавляю шаблоны
+          типовых комплектов и реквизиты приложения в карточке участка.</li>
+        <li><b>Мастер работает через бота, а не через сайт.</b> Ему не нужен полный
+          интерфейс: посмотреть свой комплект, подтвердить получение, отметить возврат,
+          подать заявку. Это снимает с системы целый пласт работы и — главное — позволяет
+          вообще не выставлять её в интернет: бот сам звонит наружу, входящих соединений
+          к серверу конторы не требуется.</li>
+        <li><b>Заявки с согласованием.</b> Ответ от 5 сентября: мастер не перемещает приборы сам,
+          он подаёт заявку, а её согласует начальник. Это не настройка прав, а отдельный
+          механизм — заявка, решение по ней, история. Раньше в плане его не было.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Этапы работ</h2>
+    <div class="stages">
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">01</span></div>
+        <div class="stage-body">
+          <h3>Данные и справочники</h3>
+          <p class="goal">Цель: система заполнена настоящим парком приборов, а комплекты
+            собираются из шаблонов, а не набиваются заново для каждого участка.</p>
+          <ul>
+            <li>Импорт реестра приборов из вашего Excel — файл в понедельник.</li>
+            <li>Шаблоны типовых комплектов: собрал один раз, применяешь к новому участку.</li>
+            <li>Реквизиты приложения к договору в карточке участка: номер, дата, пункт.</li>
+            <li>Справочник типов под вашу номенклатуру и межповерочные интервалы.</li>
+          </ul>
+          <div class="blockers">Ждёт: файл реестра · вопрос 15</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">02</span></div>
+        <div class="stage-body">
+          <h3>Сервер, доступ через интернет и роли</h3>
+          <p class="goal">Цель: система живёт в сети, а не на одном компьютере,
+            и у каждого свой вход со своими правами.</p>
+          <ul>
+            <li>Переезд на PostgreSQL — файловая база не рассчитана на нескольких
+              пользователей через интернет.</li>
+            <li>Развёртывание на сервере конторы <strong>внутри локальной сети</strong>:
+              вне офиса работают только мастера и только через бота, поэтому наружу
+              систему не выставляем — ни проброса портов, ни домена, ни сертификата.</li>
+            <li>Вход по логину и паролю; роли: администратор, инженер строительного
+              контроля, кладовщик, мастер участка.</li>
+            <li>Разграничение видимости: мастер работает со своим участком, а не со всем парком.</li>
+            <li>Заявки на перемещение: мастер подаёт — начальник согласует или отклоняет,
+              решение и его автор остаются в истории прибора.</li>
+            <li>Журнал действий: кто выдал, кто изменил карточку, кто удалил позицию.</li>
+            <li>Автоматические резервные копии на сервере.</li>
+          </ul>
+          <div class="blockers">Ждёт ответов: 41 · 42 · 43 · 45</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">03</span></div>
+        <div class="stage-body">
+          <h3>Документы для заказчика</h3>
+          <p class="goal">Цель: из системы печатаются те бумаги, которые сейчас
+            делаются руками.</p>
+          <ul>
+            <li>Акт выдачи приборов по вашей утверждённой форме — форма в понедельник.</li>
+            <li>Перечень СИ, применяемых на объекте, со сроками поверки.</li>
+            <li>Журнал учёта СИ.</li>
+            <li>Справочник материально ответственных лиц вместо текстового поля.</li>
+          </ul>
+          <div class="blockers">Ждёт: форма акта · вопросы 19 · 20 · 21</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">04</span></div>
+        <div class="stage-body">
+          <h3>Вложения и документы приборов</h3>
+          <p class="goal">Цель: скан лежит рядом с прибором в системе,
+            а не в общей папке на диске, где его ищут полдня.</p>
+          <ul>
+            <li>Файлы к поверке: свидетельства, протоколы.</li>
+            <li>Файлы к прибору: паспорт, руководство, сертификат.</li>
+            <li>Файлы к акту выдачи и к договору.</li>
+            <li>Загрузка фотографией с телефона прямо на объекте.</li>
+          </ul>
+          <div class="blockers">Ждёт ответов: 38</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">05</span></div>
+        <div class="stage-body">
+          <h3>Метрология вглубь</h3>
+          <p class="goal">Цель: поверка становится управляемым процессом,
+            а не строчкой, которую вспоминают, когда срок уже вышел.</p>
+          <ul>
+            <li>Заявки на поверку: что отправлено, кому, когда ждём назад, сколько стоило.</li>
+            <li>График поверок на год вперёд с бюджетом по месяцам.</li>
+            <li>Настраиваемый горизонт предупреждения вместо жёстких 30 дней.</li>
+          </ul>
+          <div class="blockers">Ждёт ответов: 13 · 16 · 17</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">06</span></div>
+        <div class="stage-body">
+          <h3>Бот в MAX для инженеров СК</h3>
+          <p class="goal">Цель: у инженера строительного контроля на объекте единственный
+            канал работы с системой — бот, без сайта и без пароля.</p>
+          <ul>
+            <li><strong>Заявка на перемещение</strong> — главное, ради чего бот и делается.</li>
+            <li>Подтверждение получения прибора.</li>
+            <li>Возврат по неисправности с обязательным описанием, что не так.</li>
+            <li>Прикрепление фото или скана документа прямо из чата.</li>
+            <li>Свой комплект и сроки поверок по своему участку.</li>
+            <li>Вход по коду-приглашению, который выдаёт администратор.</li>
+            <li>Бот пишет всем: главному инженеру о новой заявке, мастеру о решении,
+              мастеру и начальнику о заканчивающейся поверке, кладовщику о возврате.</li>
+          </ul>
+          <div class="blockers">Ждёт ответов: 54 · 55 · 56 · 57</div>
+        </div>
+      </article>
+
+      <article class="stage">
+        <div class="stage-mark"><span class="stage-no">07</span></div>
+        <div class="stage-body">
+          <h3>Уведомления и аналитика</h3>
+          <p class="goal">Цель: система сама напоминает о сроках, а не ждёт,
+            пока кто-то откроет вкладку.</p>
+          <ul>
+            <li>Напоминания о заканчивающихся поверках: почта или Telegram.</li>
+            <li>Загрузка парка, затраты на поверки по годам, хронический дефицит по типам.</li>
+            <li>Учёт ремонтов и затрат на них.</li>
+          </ul>
+          <div class="blockers">Ждёт ответов: 29 · 31 · 32 · 39</div>
+        </div>
+      </article>
+
+    </div>
+    <p style="margin-top:26px">Этапы 1 и 2 идут первыми по разным причинам. Первый —
+      потому что пустой системой не пользуются. Второй — потому что вход, роли и серверная
+      база это фундамент: пристроить их к наполненной базе дороже, чем заложить сразу.
+      Третий этап двигаем вперёд, если заказчик потребует перечень СИ раньше.</p>
+  </section>
+
+  <section id="questions">
+    <h2>Что мне нужно выяснить</h2>
+
+    <div class="q-intro">
+      <p><strong>Отвечать можно прямо здесь</strong> — ответы сохраняются и видны мне.
+        Коротко, своими словами; на что не знаете ответа — пропускайте.
+        Помеченные <span class="chip">блокер</span> нужно закрыть до следующего этапа:
+        без них можно сделать не то.</p>
+    </div>
+
+    <div class="counter">
+      <b id="cnt">0 / 57</b>
+      <span class="meter"><i id="meter"></i></span>
+      <span class="sync" id="sync">подключение…</span>
+    </div>
+
+    <div id="groups"></div>
+  </section>
+
+  <section>
+    <h2>Принятые технические решения</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Решение</th><th>Почему так</th></tr></thead>
+        <tbody>
+          <tr><td>Python и веб-интерфейс в браузере</td>
+              <td>работает и на компьютере, и с телефона мастера, ставить клиент на каждое устройство не нужно</td></tr>
+          <tr><td>PostgreSQL на сервере<br><span style="color:var(--accent);font-family:var(--f-mono);font-size:11px">пересмотрено 05.09</span></td>
+              <td>сначала планировался один файл SQLite, но доступ через интернет и несколько
+                  одновременных пользователей файловая база не держит</td></tr>
+          <tr><td>Сервер в интернете, вход по логину<br><span style="color:var(--accent);font-family:var(--f-mono);font-size:11px">пересмотрено 05.09</span></td>
+              <td>с объектов нужен доступ — значит, нужна и защита: без авторизации система
+                  в интернете открыта всем</td></tr>
+          <tr><td>Правила учёта в коде</td>
+              <td>нельзя «случайно» выдать прибор с просроченной поверкой</td></tr>
+          <tr><td>Русский интерфейс, термины отрасли</td>
+              <td>пользуются кладовщики и мастера, а не программисты</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Риски</h2>
+    <ul class="risks">
+      <li><b>Персональные данные на сервере в интернете</b>
+        <span>В системе будут ФИО и должности сотрудников — это персональные данные.
+          Если сервер арендуется за рубежом, это нарушение закона о хранении данных
+          россиян в России. Поэтому вопрос 33 — где размещаем — блокирующий.</span></li>
+      <li><b>Данные не перенесут</b>
+        <span>Если импорт из Excel окажется сложным, система останется пустой и ей
+          не будут пользоваться. Импорт пишем под ваш реальный файл, а не под выдуманный формат.</span></li>
+      <li><b>Расхождение с бумажным документооборотом</b>
+        <span>Если акт из системы не совпадёт с утверждённой формой, будут вести
+          и то и другое. Ждём вашу форму.</span></li>
+      <li><b>Мастера не станут пользоваться</b>
+        <span>Если мастеру на площадке придётся продираться через полный интерфейс
+          кладовщика, он вернётся к звонкам в офис. Отсюда отдельный мобильный
+          сценарий, а не «то же самое, только мельче».</span></li>
+    </ul>
+  </section>
+
+  <footer>Документ живой — правим по ходу работы. Обновлено 05.09.2026 · учтены обе порции ответов</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var GROUPS = [
+    { title: "Кто и как будет этим пользоваться", questions: [
+      { n: 1, blocker: true, t: "Кто ведёт учёт: один человек или несколько? Если несколько — какие роли (кладовщик выдаёт, инженер СК следит за поверками, руководитель смотрит отчёты)?" },
+      { n: 2, blocker: true, t: "Нужны ли учётные записи и разграничение прав, или все работают под одним доступом?" },
+      { n: 3, t: "Сколько приборов в парке? Число договоров и участков напишите в уточнении.", options: [
+        { k: "а", t: "До 50" }, { k: "б", t: "50-150" },
+        { k: "в", t: "150-500" }, { k: "г", t: "Больше 500" }
+      ] },
+      { n: 4, t: "Кто-то будет работать прямо на объекте с телефона или планшета, или только из офиса?" },
+      { n: 5, t: "Где физически хранятся приборы: один склад или несколько точек выдачи?" }
+    ]},
+    { title: "Комплект приборов и договор", questions: [
+      { n: 6, blocker: true, t: "Как комплект зафиксирован в договоре: приложением-перечнем СИ, в программе строительного контроля, в ППР? Нужна ли ссылка на пункт документа в карточке участка?" },
+      { n: 7, blocker: true, t: "Комплекты повторяются от договора к договору? Если да — сделаю шаблоны комплектов, чтобы не набивать заново." },
+      { n: 8, t: "Как задано требование в комплекте по договору?", options: [
+        { k: "а", t: "Только по типу прибора" },
+        { k: "б", t: "По типу плюс класс точности или диапазон" },
+        { k: "в", t: "Бывает указана конкретная модель" },
+        { k: "г", t: "По-разному, зависит от заказчика" }
+      ] },
+      { n: 9, t: "Что учитываем кроме средств измерений? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Только средства измерений" },
+        { k: "б", t: "Вспомогательное: штативы, рейки, вешки, реперы" },
+        { k: "в", t: "Расходники, ЗИП, аккумуляторы" },
+        { k: "г", t: "Инструмент общего назначения" }
+      ] },
+      { n: 10, t: "Чьи приборы в работе? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Все свои" },
+        { k: "б", t: "Есть арендованные" },
+        { k: "в", t: "Есть приборы заказчика" },
+        { k: "г", t: "Есть приборы субподрядчиков" }
+      ] },
+      { n: 11, t: "Один прибор может числиться сразу за двумя участками (возят между объектами)? Сейчас жёстко: один прибор — один участок." }
+    ]},
+    { title: "Поверка и метрология", questions: [
+      { n: 12, blocker: true, t: "Нужно ли хранить сканы и фото свидетельств о поверке? Заказчики их обычно требуют." },
+      { n: 13, t: "Кто возит на поверку: свой метролог или подрядчик? Нужен ли учёт заявок (что отправлено, когда, кому, когда ждём назад) и стоимости?" },
+      { n: 14, t: "Различать ли поверку, калибровку и аттестацию? Сейчас все три есть, но обрабатываются одинаково." },
+      { n: 15, t: "Откуда берём межповерочные интервалы?", options: [
+        { k: "а", t: "Есть свой утверждённый перечень — пришлю" },
+        { k: "б", t: "Из описания типа средства измерений" },
+        { k: "в", t: "По факту из свидетельств о поверке" },
+        { k: "г", t: "Уточню" }
+      ] },
+      { n: 16, t: "За сколько дней до конца поверки прибор должен попадать в предупреждение? Сейчас 30." },
+      { n: 17, t: "Нужен ли график поверок на год вперёд — план по месяцам с бюджетом?" }
+    ]},
+    { title: "Документы и отчётность", questions: [
+      { n: 18, blocker: true, t: "Чем оформляется выдача прибора на участок: акт приёма-передачи, ведомость, расписка в журнале? Пришлите форму — сделаю печать из системы." },
+      { n: 19, t: "Какие документы регулярно требует заказчик? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Перечень СИ по объекту со сроками поверки" },
+        { k: "б", t: "Копии свидетельств о поверке" },
+        { k: "в", t: "Акты приёма-передачи приборов" },
+        { k: "г", t: "Регулярно ничего не требует" }
+      ] },
+      { n: 20, t: "Нужен ли журнал учёта СИ по форме?", options: [
+        { k: "а", t: "Да, есть своя форма — пришлю" },
+        { k: "б", t: "Достаточно выгрузки в Excel" },
+        { k: "в", t: "Не нужен" }
+      ] },
+      { n: 21, t: "Материально ответственные лица — справочник или текстовое поле?", options: [
+        { k: "а", t: "Справочник: ФИО, должность, приказ о назначении" },
+        { k: "б", t: "Хватит текстового поля, как сейчас" }
+      ] },
+      { n: 22, t: "В каком виде удобнее отчёты?", options: [
+        { k: "а", t: "Excel" },
+        { k: "б", t: "PDF на печать" },
+        { k: "в", t: "И то, и другое" }
+      ] }
+    ]},
+    { title: "Данные для переноса", questions: [
+      { n: 23, blocker: true, t: "Есть ли текущий реестр в Excel? Пришлите файл (можно обезличенный) — напишу импорт, чтобы не забивать всё руками." },
+      { n: 24, t: "Переносим ли историю поверок за прошлые годы?", options: [
+        { k: "а", t: "Всю историю, какая есть" },
+        { k: "б", t: "Только последнюю действующую поверку" },
+        { k: "в", t: "Начинаем с текущего состояния" }
+      ] },
+      { n: 25, t: "Инвентарные номера приборов.", options: [
+        { k: "а", t: "Присвоены и уникальны" },
+        { k: "б", t: "Присвоены, но бывают повторы" },
+        { k: "в", t: "Номеров нет, нужно генерировать" }
+      ] }
+    ]},
+    { title: "Где и как это будет работать", questions: [
+      { n: 26, blocker: true, t: "Один компьютер, локальная сеть офиса, или доступ через интернет с объектов? От этого зависит база данных и необходимость авторизации." },
+      { n: 27, t: "Windows? Нужен ли запуск ярлыком с рабочего стола, без терминала и команд?" },
+      { n: 28, t: "Куда делать резервные копии: локальная папка, сетевой диск, облако?" },
+      { n: 29, t: "Нужны ли уведомления о поверках и куда: почта, Telegram, или достаточно предупреждений на экране?" }
+    ]},
+    { title: "Сервер, доступ и роли — после ваших ответов", questions: [
+      { n: 33, blocker: true, t: "Где размещаем сервер? В системе будут ФИО сотрудников — это персональные данные, хранить их нужно на серверах в России.", options: [
+        { k: "а", t: "Своя машина в офисе, доступ наружу через роутер или VPN" },
+        { k: "б", t: "Аренда VPS у российского хостера" },
+        { k: "в", t: "Российское облако" },
+        { k: "г", t: "Не знаю — предложи и обоснуй" }
+      ]},
+      { n: 34, blocker: true, t: "Что может мастер участка? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Только смотреть свой комплект и сроки поверок" },
+        { k: "б", t: "Отмечать возврат прибора с участка" },
+        { k: "в", t: "Подтверждать получение выданных ему приборов" },
+        { k: "г", t: "Выдавать и перемещать приборы наравне с кладовщиком" }
+      ]},
+      { n: 35, t: "Что видит мастер?", options: [
+        { k: "а", t: "Только свой участок" },
+        { k: "б", t: "Все участки своего договора" },
+        { k: "в", t: "Все участки компании" },
+        { k: "г", t: "Настраивается индивидуально для каждого" }
+      ]},
+      { n: 36, t: "Сколько всего пользователей ожидается?", options: [
+        { k: "а", t: "До 5" },
+        { k: "б", t: "5-15" },
+        { k: "в", t: "15-50" },
+        { k: "г", t: "Больше 50" }
+      ]},
+      { n: 37, t: "Как входят в систему? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Логин и пароль, пароли заводит администратор" },
+        { k: "б", t: "Плюс восстановление пароля по почте" },
+        { k: "в", t: "Плюс двухфакторная проверка" },
+        { k: "г", t: "Вход по номеру телефона и коду из СМС" }
+      ]},
+      { n: 38, t: "Какие документы храним сканами? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Свидетельства о поверке и протоколы" },
+        { k: "б", t: "Паспорта приборов и руководства" },
+        { k: "в", t: "Сертификаты калибровки и аттестации" },
+        { k: "г", t: "Акты приёма-передачи, накладные, счета" },
+        { k: "д", t: "Договоры и приложения к ним" }
+      ]},
+      { n: 39, t: "Есть ли у компании домен и корпоративная почта? На них завяжем адрес системы и письма о поверках.", options: [
+        { k: "а", t: "Есть и домен, и почта на нём" },
+        { k: "б", t: "Есть только почта на общем сервисе" },
+        { k: "в", t: "Ничего нет, нужно заводить" },
+        { k: "г", t: "Уточню" }
+      ]},
+      { n: 40, t: "Нужен ли заказчику доступ на просмотр — перечень СИ по своему объекту, без права менять?", options: [
+        { k: "а", t: "Да, нужен" },
+        { k: "б", t: "Нет, отправляем выгрузки и бумаги" },
+        { k: "в", t: "Не сейчас, но заложи на будущее" }
+      ]}
+    ]},
+    { title: "Заявки, согласование и сервер — после ответов 5 сентября", questions: [
+      { n: 41, blocker: true, t: "Кто согласует заявку мастера на перемещение прибора?", options: [
+        { k: "а", t: "Один согласующий на всю компанию — руководитель строительного контроля" },
+        { k: "б", t: "Начальник того участка, куда перемещают" },
+        { k: "в", t: "Кладовщик, он же и исполняет" },
+        { k: "г", t: "Зависит от участка, надо настраивать" }
+      ]},
+      { n: 42, t: "Что происходит при отказе в заявке? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Просто отклонить" },
+        { k: "б", t: "Отклонить с обязательным комментарием" },
+        { k: "в", t: "Уведомить мастера письмом" }
+      ]},
+      { n: 43, t: "Заявки нужны только на перемещение между участками, или и на выдачу нового прибора со склада?", options: [
+        { k: "а", t: "И на выдачу со склада тоже" },
+        { k: "б", t: "Только на перемещение, выдачу оформляет кладовщик" }
+      ]},
+      { n: 44, t: "Вход по СМС требует платного шлюза: абонентская плата плюс деньги за каждое сообщение. При 5-15 пользователях обычно хватает пароля и восстановления по почте. Оставляем СМС?", options: [
+        { k: "а", t: "Оставить, готовы платить за шлюз" },
+        { k: "б", t: "Убрать, хватит логина и почты" },
+        { k: "в", t: "Заложить на будущее, пока не включать" }
+      ]},
+      { n: 45, blocker: true, t: "Сервер на своей машине — это выделенный компьютер или чей-то рабочий? И какой у конторы интернет-адрес?", options: [
+        { k: "а", t: "Выделенный компьютер, статический IP есть" },
+        { k: "б", t: "Выделенный компьютер, адрес динамический" },
+        { k: "в", t: "Чей-то рабочий компьютер" },
+        { k: "г", t: "Уточню у провайдера" }
+      ]}
+    ]},
+    { title: "Согласование и сервер — уточнения", questions: [
+      { n: 46, blocker: true, t: "Какой именно начальник согласует заявку мастера на перемещение?", options: [
+        { k: "а", t: "Руководитель строительного контроля — один на всю компанию" },
+        { k: "б", t: "Начальник участка, откуда забирают прибор" },
+        { k: "в", t: "Начальник участка, куда перемещают" },
+        { k: "г", t: "Главный инженер или другой руководитель" }
+      ]},
+      { n: 47, t: "Какая операционная система на сервере конторы? Нужно для развёртывания.", options: [
+        { k: "а", t: "Windows Server" },
+        { k: "б", t: "Linux" },
+        { k: "в", t: "Уточню у своих" }
+      ]},
+      { n: 48, t: "Кто обслуживает сервер?", options: [
+        { k: "а", t: "Свой системный администратор" },
+        { k: "б", t: "Приходящий айтишник" },
+        { k: "в", t: "Никто, разбираемся сами" },
+        { k: "г", t: "Уточню" }
+      ]}
+    ]},
+    { title: "Бот для мастеров — после уточнения 5 сентября", questions: [
+      { n: 49, blocker: true, t: "Кто, кроме мастеров, работает вне офиса? Если никто, систему можно вообще не выставлять в интернет — это снимает и проброс портов, и домен, и сертификат.", options: [
+        { k: "а", t: "Никто, все остальные работают в офисе" },
+        { k: "б", t: "Инженеры строительного контроля бывают на объектах" },
+        { k: "в", t: "Руководство смотрит отчёты из дома или в командировке" },
+        { k: "г", t: "Уточню" }
+      ]},
+      { n: 50, blocker: true, t: "В каком мессенджере делаем бота?", options: [
+        { k: "а", t: "Telegram" },
+        { k: "б", t: "MAX" },
+        { k: "в", t: "WhatsApp" },
+        { k: "г", t: "Уточню, чем пользуются мастера" }
+      ]},
+      { n: 51, t: "Что мастер делает в боте? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Смотрит свой комплект и сроки поверок" },
+        { k: "б", t: "Подтверждает получение прибора" },
+        { k: "в", t: "Отмечает возврат" },
+        { k: "г", t: "Подаёт заявку на перемещение" },
+        { k: "д", t: "Получает напоминания о поверках" },
+        { k: "е", t: "Сканирует QR-код на приборе" },
+        { k: "ж", t: "Фотографирует документ и отправляет в систему" }
+      ]},
+      { n: 52, t: "Как бот опознаёт мастера?", options: [
+        { k: "а", t: "По номеру телефона из справочника сотрудников" },
+        { k: "б", t: "По коду-приглашению, который выдаёт администратор" },
+        { k: "в", t: "Уточню" }
+      ]},
+      { n: 53, t: "Кому и что бот пишет сам? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Главному инженеру — о новой заявке" },
+        { k: "б", t: "Мастеру — о решении по его заявке" },
+        { k: "в", t: "Мастеру — о заканчивающейся поверке на его участке" },
+        { k: "г", t: "Кладовщику — о возврате прибора" }
+      ]}
+    ]},
+    { title: "Бот и неисправности — уточнения", questions: [
+      { n: 54, t: "Мастер может вернуть исправный прибор — просто сдать на склад, — или возврат бывает только по неисправности?", options: [
+        { k: "а", t: "Может сдать и исправный, это обычная операция" },
+        { k: "б", t: "Только по неисправности, иначе прибор остаётся за участком" },
+        { k: "в", t: "Сдачу исправного оформляет кладовщик, мастер только сообщает" }
+      ]},
+      { n: 55, t: "Куда попадает прибор, возвращённый как неисправный?", options: [
+        { k: "а", t: "Сразу в статус «в ремонте»" },
+        { k: "б", t: "Сначала кладовщик осматривает, потом решает" },
+        { k: "в", t: "Главный инженер решает: ремонт или списание" }
+      ]},
+      { n: 56, t: "Какие документы инженер прикрепляет из бота? Можно выбрать несколько.", multi: true, options: [
+        { k: "а", t: "Свидетельства о поверке" },
+        { k: "б", t: "Акты приёма-передачи с подписью" },
+        { k: "в", t: "Фото повреждений прибора" },
+        { k: "г", t: "Паспорта приборов" }
+      ]},
+      { n: 57, t: "«Начальник», который получает напоминания о поверках, — это кто?", options: [
+        { k: "а", t: "Главный инженер, он же согласует заявки" },
+        { k: "б", t: "Руководитель строительного контроля" },
+        { k: "в", t: "Оба" }
+      ]}
+    ]},
+    { title: "На вырост", questions: [
+      { n: 30, t: "Интересен ли сценарий с QR-кодами: наклейка на прибор, сканирование телефоном при выдаче и возврате вместо выбора из списка?" },
+      { n: 31, t: "Нужен ли учёт ремонтов и затрат на них (кто чинил, сколько стоило, простой)?" },
+      { n: 32, t: "Нужна ли аналитика: загрузка парка, затраты на поверки по годам, какие приборы чаще всего в дефиците?" }
+    ]}
+  ];
+
+  var TOTAL = 57;
+  var groupsEl = document.getElementById("groups");
+  var cntEl = document.getElementById("cnt");
+  var meterEl = document.getElementById("meter");
+  var syncEl = document.getElementById("sync");
+  var fields = {};   // n -> {area, status, card, buttons, def}
+  var answers = {};  // n -> свободный текст
+  var chosen = {};   // n -> выбранные буквы
+  var db = null;
+  var timers = {};
+
+  GROUPS.forEach(function (group, gi) {
+    var wrapper = document.createElement("div");
+    wrapper.className = "q-group";
+
+    var heading = document.createElement("h3");
+    var gno = document.createElement("span");
+    gno.className = "g-no";
+    gno.textContent = String(gi + 1);
+    heading.appendChild(gno);
+    heading.appendChild(document.createTextNode(group.title));
+    wrapper.appendChild(heading);
+
+    group.questions.forEach(function (q) {
+      var card = document.createElement("div");
+      card.className = "q" + (q.blocker ? " is-blocker" : "");
+
+      var head = document.createElement("div");
+      head.className = "q-head";
+
+      var no = document.createElement("span");
+      no.className = "q-no";
+      no.textContent = q.n < 10 ? "0" + q.n : String(q.n);
+      head.appendChild(no);
+
+      var text = document.createElement("span");
+      text.className = "q-text";
+      text.textContent = q.t;
+      head.appendChild(text);
+
+      if (q.blocker) {
+        var chip = document.createElement("span");
+        chip.className = "chip";
+        chip.textContent = "блокер";
+        head.appendChild(chip);
+      }
+      card.appendChild(head);
+
+      var buttons = {};
+      if (q.options) {
+        var opts = document.createElement("div");
+        opts.className = "opts";
+        q.options.forEach(function (option) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "opt";
+          button.setAttribute("aria-pressed", "false");
+          var key = document.createElement("span");
+          key.className = "k";
+          key.textContent = option.k;
+          button.appendChild(key);
+          button.appendChild(document.createTextNode(option.t));
+          button.addEventListener("click", function () {
+            toggle(q, option.k);
+          });
+          opts.appendChild(button);
+          buttons[option.k] = button;
+        });
+        card.appendChild(opts);
+
+        var hint = document.createElement("div");
+        hint.className = "opt-hint";
+        hint.textContent = q.multi ? "можно выбрать несколько" : "выберите один вариант";
+        card.appendChild(hint);
+      }
+
+      var area = document.createElement("textarea");
+      area.rows = 1;
+      area.placeholder = q.options ? "Уточнение своими словами…" : "Ответ…";
+      area.setAttribute("aria-label", "Ответ на вопрос " + q.n);
+      card.appendChild(area);
+
+      var status = document.createElement("div");
+      status.className = "q-status";
+      card.appendChild(status);
+
+      wrapper.appendChild(card);
+      fields[q.n] = { area: area, status: status, card: card, buttons: buttons, def: q };
+      chosen[q.n] = [];
+
+      area.addEventListener("input", function () {
+        autoGrow(area);
+        answers[q.n] = area.value;
+        refreshCounter();
+        scheduleSave(q.n);
+      });
+      area.addEventListener("blur", function () { saveNow(q.n); });
+    });
+
+    groupsEl.appendChild(wrapper);
+  });
+
+  function autoGrow(area) {
+    area.style.height = "auto";
+    area.style.height = Math.max(42, area.scrollHeight) + "px";
+  }
+
+  function toggle(q, key) {
+    var picked = chosen[q.n] || [];
+    if (picked.indexOf(key) !== -1) {
+      picked = picked.filter(function (k) { return k !== key; });
+    } else {
+      picked = q.multi ? picked.concat([key]) : [key];
+    }
+    chosen[q.n] = picked;
+    paintChoice(q.n);
+    refreshCounter();
+    saveNow(q.n);
+  }
+
+  function paintChoice(n) {
+    var field = fields[n];
+    var picked = chosen[n] || [];
+    for (var key in field.buttons) {
+      field.buttons[key].setAttribute("aria-pressed", picked.indexOf(key) !== -1 ? "true" : "false");
+    }
+  }
+
+  function composed(n) {
+    var field = fields[n];
+    var picked = chosen[n] || [];
+    var labels = (field.def.options || [])
+      .filter(function (option) { return picked.indexOf(option.k) !== -1; })
+      .map(function (option) { return option.k + ") " + option.t; });
+    var note = field.area.value.trim();
+    if (labels.length && note) return labels.join("; ") + " — " + note;
+    if (labels.length) return labels.join("; ");
+    return note;
+  }
+
+  function isAnswered(n) {
+    return (chosen[n] && chosen[n].length > 0) || !!(answers[n] && answers[n].trim());
+  }
+
+  function refreshCounter() {
+    var done = 0;
+    for (var key in fields) {
+      if (isAnswered(key)) done++;
+    }
+    cntEl.textContent = done + " / " + TOTAL;
+    meterEl.style.width = Math.round(done / TOTAL * 100) + "%";
+    for (var k in fields) {
+      fields[k].card.classList.toggle("is-answered", isAnswered(k));
+    }
+  }
+
+  function scheduleSave(n) {
+    clearTimeout(timers[n]);
+    timers[n] = setTimeout(function () { saveNow(n); }, 1200);
+  }
+
+  function saveNow(n) {
+    clearTimeout(timers[n]);
+    if (!db) return;
+    var field = fields[n];
+    var note = field.area.value.trim();
+    var value = composed(n);
+    field.status.textContent = "сохранение…";
+    field.status.classList.remove("is-saved");
+    db.doc("answers/q" + n).set({
+      question: Number(n),
+      choice: chosen[n] || [],
+      note: note,
+      answer: value,
+      updatedAt: new Date().toISOString()
+    }).then(function () {
+      field.status.textContent = value ? "сохранено " + timeLabel() : "";
+      field.status.classList.add("is-saved");
+    }).catch(function (error) {
+      field.status.textContent = "не сохранилось: " + (error && error.code ? error.code : "ошибка");
+      field.status.classList.remove("is-saved");
+    });
+  }
+
+  function timeLabel() {
+    var d = new Date();
+    return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+  }
+
+  refreshCounter();
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("db").then(function (namespace) {
+      if (!namespace) {
+        syncEl.textContent = "ответы здесь не сохраняются — пришлите их в чат";
+        return;
+      }
+      db = namespace;
+      syncEl.textContent = "ответы сохраняются автоматически";
+      db.collection("answers").onSnapshot(function (snapshot) {
+        snapshot.docs.forEach(function (docSnap) {
+          var data = docSnap.data() || {};
+          var n = data.question;
+          if (!fields[n]) return;
+          var incoming = typeof data.note === "string"
+            ? data.note
+            : (typeof data.answer === "string" ? data.answer : "");
+          if (document.activeElement !== fields[n].area && fields[n].area.value !== incoming) {
+            fields[n].area.value = incoming;
+            autoGrow(fields[n].area);
+          }
+          answers[n] = incoming;
+          chosen[n] = Array.isArray(data.choice) ? data.choice : [];
+          paintChoice(n);
+        });
+        refreshCounter();
+      }, function () {
+        syncEl.textContent = "связь с хранилищем потеряна — пришлите ответы в чат";
+      });
+    });
+  } else {
+    syncEl.textContent = "ответы здесь не сохраняются — пришлите их в чат";
+  }
+})();
+</script>

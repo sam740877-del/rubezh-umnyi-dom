@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Участки — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Участки строительства</h1>
+<p class="sub">Комплект приборов на участке задаётся договором. Готовность считается автоматически.</p>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Участок</th><th>Договор / заказчик</th><th>Ответственный</th><th>Комплект</th><th>Готовность</th><th>Статус</th></tr>
+    {% for site in sites %}
+    {% set report = reports[site.id] %}
+    <tr>
+      <td><a href="/sites/{{ site.id }}">{{ site.name }}</a><div class="small muted">{{ site.address or '' }}</div></td>
+      <td class="small">{{ site.contract.number }}<div class="muted">{{ site.contract.customer }}</div></td>
+      <td class="small">{{ site.responsible_name or '—' }}<div class="muted">{{ site.responsible_phone or '' }}</div></td>
+      <td class="nowrap">{{ report.fact_total }} / {{ report.required_total }}{% if report.deficit_total %}<div class="small" style="color:var(--bad)">дефицит {{ report.deficit_total }}</div>{% endif %}</td>
+      <td>{{ m.percent_bar(report.percent) }}<span class="small muted">{{ report.percent }}%</span></td>
+      <td><span class="badge {{ 'ok' if site.status == 'active' else 'neutral' }}">{{ site.status_label }}</span></td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Участков нет.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <details class="form-block">
+    <summary>Добавить участок</summary>
+    <form method="post" action="/sites/new">
+      <div class="fields">
+        <div class="field"><label>Название *</label><input name="name" required></div>
+        <div class="field"><label>Договор *</label>
+          <select name="contract_id" required>{% for c in contracts %}<option value="{{ c.id }}">{{ c.number }} — {{ c.customer }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Адрес</label><input name="address"></div>
+        <div class="field"><label>Ответственный</label><input name="responsible_name"></div>
+        <div class="field"><label>Телефон</label><input name="responsible_phone"></div>
+        <div class="field"><label>Статус</label>
+          <select name="status">{% for key, label in SITE_STATUSES.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="btn-row"><button type="submit">Создать участок</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}

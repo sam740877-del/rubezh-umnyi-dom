@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Справочник типов — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Справочник типов приборов</h1>
+<p class="sub">Тип задаёт межповерочный интервал — по нему автоматически считается срок действия поверки.</p>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Категория</th><th>Тип</th><th>Поверка</th><th>Интервал</th><th>Приборов</th></tr>
+    {% for t in types %}
+    <tr>
+      <td class="small muted">{{ t.category_label }}</td>
+      <td>{{ t.name }}{% if t.notes %}<div class="small muted">{{ t.notes }}</div>{% endif %}</td>
+      <td>{% if t.requires_verification %}<span class="badge ok">требуется</span>{% else %}<span class="badge neutral">не требуется</span>{% endif %}</td>
+      <td class="small nowrap">{{ t.verification_interval_months }} мес.</td>
+      <td class="right"><a href="/instruments?type_id={{ t.id }}">{{ t.instruments|length }}</a></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">Справочник пуст — запустите <code>python manage.py seed-types</code>.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <details class="form-block">
+    <summary>Добавить тип</summary>
+    <form method="post" action="/types/new">
+      <div class="fields">
+        <div class="field"><label>Название *</label><input name="name" required></div>
+        <div class="field"><label>Категория</label>
+          <select name="category">{% for key, label in CATEGORIES.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Межповерочный интервал, мес.</label><input name="verification_interval_months" type="number" min="1" value="12"></div>
+      </div>
+      <label class="small"><input type="checkbox" name="requires_verification" value="1" checked style="width:auto"> требует поверки</label>
+      <div class="field"><label>Примечание</label><textarea name="notes"></textarea></div>
+      <div class="btn-row"><button type="submit">Добавить</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% macro state_badge(state) %}
+  {% if state.code == 'ok' %}<span class="badge ok">до конца поверки {{ state.days_left }} дн.</span>
+  {% elif state.code == 'expiring' %}<span class="badge warn">истекает через {{ state.days_left }} дн.</span>
+  {% elif state.code == 'expired' %}<span class="badge bad">просрочена на {{ -state.days_left }} дн.</span>
+  {% elif state.code == 'missing' %}<span class="badge bad">нет данных о поверке</span>
+  {% else %}<span class="badge neutral">поверка не требуется</span>{% endif %}
+{% endmacro %}
+
+{% macro status_badge(instrument) %}
+  {% set cls = {'in_use': 'ok', 'warehouse': 'neutral', 'verification': 'warn', 'repair': 'warn', 'written_off': 'bad'} %}
+  <span class="badge {{ cls.get(instrument.status, 'neutral') }}">{{ instrument.status_label }}</span>
+{% endmacro %}
+
+{% macro percent_bar(percent) %}
+  <div class="bar {{ 'bad' if percent < 60 else ('warn' if percent < 100 else '') }}">
+    <span style="width: {{ percent }}%"></span>
+  </div>
+{% endmacro %}
+
+{% macro date_ru(value) %}{{ value.strftime('%d.%m.%Y') if value else '—' }}{% endmacro %}

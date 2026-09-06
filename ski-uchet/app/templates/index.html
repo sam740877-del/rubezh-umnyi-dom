@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Сводка — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Сводка на {{ data.today.strftime('%d.%m.%Y') }}</h1>
+<p class="sub">Состояние приборного парка, поверок и укомплектованности участков.</p>
+
+<div class="grid cards">
+  <div class="card"><div class="num">{{ data.total_instruments }}</div><div class="lbl">приборов в учёте</div></div>
+  <div class="card"><div class="num">{{ data.by_status.get('in_use', 0) }}</div><div class="lbl">на участках</div></div>
+  <div class="card"><div class="num">{{ data.by_status.get('warehouse', 0) }}</div><div class="lbl">на складе</div></div>
+  <div class="card bad"><div class="num">{{ data.expired|length }}</div><div class="lbl">поверка просрочена</div></div>
+  <div class="card warn"><div class="num">{{ data.expiring|length }}</div><div class="lbl">поверка истекает (30 дн.)</div></div>
+  <div class="card bad"><div class="num">{{ data.missing|length }}</div><div class="lbl">без данных о поверке</div></div>
+  <div class="card"><div class="num">{{ data.active_sites }}</div><div class="lbl">действующих участков</div></div>
+  <div class="card {{ 'bad' if data.incomplete_sites else 'ok' }}"><div class="num">{{ data.incomplete_sites|length }}</div><div class="lbl">участков с дефицитом</div></div>
+  <div class="card {{ 'warn' if data.open_requests else '' }}"><div class="num">{{ data.open_requests|length }}</div><div class="lbl">заявок на согласовании</div></div>
+</div>
+
+<h2>Укомплектованность участков</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Участок</th><th>Договор</th><th>Комплект</th><th>Готовность</th><th>Дефицит</th><th>Проблемы поверки</th></tr>
+    {% for report in data.site_reports %}
+    <tr>
+      <td><a href="/sites/{{ report.site.id }}">{{ report.site.name }}</a></td>
+      <td class="small muted">{{ report.site.contract.number }}</td>
+      <td class="nowrap">{{ report.fact_total }} / {{ report.required_total }}</td>
+      <td>{{ m.percent_bar(report.percent) }}<span class="small muted">{{ report.percent }}%</span></td>
+      <td>{% if report.deficit_total %}<span class="badge bad">не хватает {{ report.deficit_total }}</span>{% else %}<span class="badge ok">комплект собран</span>{% endif %}</td>
+      <td>{% if report.problems %}<span class="badge warn">{{ report.problems|length }} приб.</span>{% else %}<span class="muted small">нет</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">Участков пока нет. <a href="/sites">Добавить участок</a></td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if data.open_requests %}
+<h2>Заявки на согласовании</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>№</th><th>Прибор</th><th>Откуда → куда</th><th>Подал</th><th>Дата</th></tr>
+    {% for r in data.open_requests %}
+    <tr>
+      <td class="nowrap">{{ r.id }}</td>
+      <td class="small"><a href="/instruments/{{ r.instrument_id }}">{{ r.instrument.inventory_no }}</a> {{ r.instrument.name }}</td>
+      <td class="small">{{ r.from_site.name if r.from_site else '—' }} → <strong>{{ r.to_site.name }}</strong></td>
+      <td class="small">{{ r.requested_by }}</td>
+      <td class="small nowrap">{{ m.date_ru(r.requested_on) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="btn-row"><a class="btn" href="/requests">Рассмотреть заявки</a></div>
+</div>
+{% endif %}
+
+<h2>Требуют внимания по поверке</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Инв. №</th><th>Наименование</th><th>Участок</th><th>Поверка до</th><th>Состояние</th></tr>
+    {% for instrument, state in (data.expired + data.missing + data.expiring)[:20] %}
+    <tr>
+      <td class="nowrap"><a href="/instruments/{{ instrument.id }}">{{ instrument.inventory_no }}</a></td>
+      <td>{{ instrument.name }}</td>
+      <td class="small">{{ instrument.current_site.name if instrument.current_site else '—' }}</td>
+      <td class="nowrap">{{ m.date_ru(instrument.verification_valid_until) }}</td>
+      <td>{{ m.state_badge(state) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Все поверки в порядке.</td></tr>
+    {% endfor %}
+  </table>
+  <div class="btn-row"><a class="btn ghost" href="/verifications">Весь список поверок</a></div>
+</div>
+{% endblock %}

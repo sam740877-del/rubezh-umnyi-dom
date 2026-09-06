@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Договоры — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Договоры</h1>
+<p class="sub">Комплект приборов закрепляется за участками договора.</p>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Номер</th><th>Предмет</th><th>Заказчик</th><th>Срок</th><th>Участки</th><th>Статус</th></tr>
+    {% for c in contracts %}
+    <tr>
+      <td class="nowrap"><strong>{{ c.number }}</strong></td>
+      <td>{{ c.title }}</td>
+      <td class="small">{{ c.customer }}</td>
+      <td class="small nowrap">{{ m.date_ru(c.signed_on) }} — {{ m.date_ru(c.valid_until) }}</td>
+      <td class="small">
+        {% for s in c.sites %}<a href="/sites/{{ s.id }}">{{ s.name }}</a>{% if not loop.last %}<br>{% endif %}
+        {% else %}<span class="muted">—</span>{% endfor %}
+      </td>
+      <td><span class="badge {{ 'ok' if c.status == 'active' else 'neutral' }}">{{ c.status_label }}</span></td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Договоров нет.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <details class="form-block">
+    <summary>Добавить договор</summary>
+    <form method="post" action="/contracts/new">
+      <div class="fields">
+        <div class="field"><label>Номер *</label><input name="number" required placeholder="СМР-2025/14"></div>
+        <div class="field"><label>Предмет договора *</label><input name="title" required></div>
+        <div class="field"><label>Заказчик *</label><input name="customer" required></div>
+        <div class="field"><label>Дата подписания</label><input type="date" name="signed_on"></div>
+        <div class="field"><label>Действует до</label><input type="date" name="valid_until"></div>
+        <div class="field"><label>Статус</label>
+          <select name="status">{% for key, label in CONTRACT_STATUSES.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label>Примечание</label><textarea name="notes"></textarea></div>
+      <div class="btn-row"><button type="submit">Создать договор</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}

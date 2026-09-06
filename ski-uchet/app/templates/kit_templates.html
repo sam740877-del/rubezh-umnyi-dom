@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Типовые комплекты — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Типовые комплекты</h1>
+<p class="sub">Комплекты повторяются от договора к договору. Собери один раз —
+  и применяй к новому участку одним нажатием.</p>
+
+<div class="grid two">
+  {% for t in templates_list %}
+  <div class="panel">
+    <h2 style="margin-top:0">{{ t.name }}</h2>
+    <p class="small muted">{{ t.notes or '' }} Позиций: {{ t.items|length }}, приборов: {{ t.total_qty }}</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Тип прибора</th><th class="right">Кол-во</th></tr>
+        {% for item in t.items|sort(attribute='type.name') %}
+        <tr><td>{{ item.type.name }}</td><td class="right">{{ item.required_qty }}</td></tr>
+        {% else %}<tr><td colspan="2" class="muted">Пусто</td></tr>{% endfor %}
+      </table>
+    </div>
+    <form class="inline" method="post" action="/templates/{{ t.id }}/item" style="margin-top:12px">
+      <div style="flex:2 1 180px"><label>Добавить тип</label>
+        <select name="type_id" required>{% for tp in types %}<option value="{{ tp.id }}">{{ tp.name }}</option>{% endfor %}</select></div>
+      <div style="flex:0 1 90px"><label>Кол-во</label><input name="required_qty" type="number" min="1" value="1"></div>
+      <button type="submit">Добавить</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="panel"><p class="muted">Типовых комплектов пока нет.</p></div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <details class="form-block">
+    <summary>Создать типовой комплект</summary>
+    <form method="post" action="/templates/new">
+      <div class="fields">
+        <div class="field"><label>Название</label><input name="name" required placeholder="Монолитные работы"></div>
+        <div class="field"><label>Примечание</label><input name="notes"></div>
+      </div>
+      <div class="btn-row"><button type="submit">Создать</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}

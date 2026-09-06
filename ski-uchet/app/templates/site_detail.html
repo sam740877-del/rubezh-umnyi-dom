@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ site.name }} — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>{{ site.name }}</h1>
+<p class="sub">
+  Договор <strong>{{ site.contract.number }}</strong> — {{ site.contract.customer }}
+  {% if site.address %} · {{ site.address }}{% endif %}
+  {% if site.responsible_name %} · ответственный: {{ site.responsible_name }} {{ site.responsible_phone or '' }}{% endif %}
+  {% if site.annex_no %}<br>Комплект закреплён приложением № {{ site.annex_no }}{% if site.annex_date %} от {{ m.date_ru(site.annex_date) }}{% endif %} к договору{% endif %}
+</p>
+
+<div class="grid cards">
+  <div class="card"><div class="num">{{ report.percent }}%</div><div class="lbl">укомплектованность</div></div>
+  <div class="card"><div class="num">{{ report.fact_total }} / {{ report.required_total }}</div><div class="lbl">факт / по договору</div></div>
+  <div class="card {{ 'bad' if report.deficit_total else 'ok' }}"><div class="num">{{ report.deficit_total }}</div><div class="lbl">не хватает приборов</div></div>
+  <div class="card {{ 'warn' if report.problems else 'ok' }}"><div class="num">{{ report.problems|length }}</div><div class="lbl">проблем по поверке</div></div>
+</div>
+
+<h2>Комплект по договору</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Тип прибора</th><th>Требуется</th><th>Факт</th><th>Дефицит</th><th>Приборы на участке</th><th></th></tr>
+    {% for row in report.rows %}
+    <tr>
+      <td>{{ row.type.name }}{% if row.notes %}<div class="small muted">{{ row.notes }}</div>{% endif %}</td>
+      <td class="right">{{ row.required_qty }}</td>
+      <td class="right">{{ row.fact_qty }}</td>
+      <td class="right">{% if row.deficit %}<span class="badge bad">−{{ row.deficit }}</span>{% else %}<span class="badge ok">ок</span>{% endif %}</td>
+      <td class="small">
+        {% for i in row.instruments %}
+          <a href="/instruments/{{ i.id }}">{{ i.inventory_no }}</a>{{ ' ' }}{{ m.state_badge(verification_state(i)) }}{% if not loop.last %}<br>{% endif %}
+        {% else %}<span class="muted">—</span>{% endfor %}
+      </td>
+      <td class="right">
+        <form method="post" action="/sites/{{ site.id }}/kit/{{ row.kit_item_id }}/delete"
+              onsubmit="return confirm('Удалить позицию из комплекта?')">
+          <button class="danger" type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Комплект по договору не задан.</td></tr>{% endfor %}
+  </table>
+</div>
+
+{% if report.extra %}
+<h2>Приборы вне комплекта</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Инв. №</th><th>Наименование</th><th>Тип</th><th>Поверка</th></tr>
+    {% for i in report.extra %}
+    <tr><td><a href="/instruments/{{ i.id }}">{{ i.inventory_no }}</a></td><td>{{ i.name }}</td>
+        <td class="small muted">{{ i.type.name }}</td><td>{{ m.state_badge(verification_state(i)) }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="panel">
+    <h2 style="margin-top:0">Добавить позицию в комплект</h2>
+    <form method="post" action="/sites/{{ site.id }}/kit">
+      <div class="fields">
+        <div class="field"><label>Тип прибора</label>
+          <select name="type_id" required>{% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Требуется, шт.</label><input name="required_qty" type="number" min="1" value="1"></div>
+        <div class="field"><label>Примечание</label><input name="notes"></div>
+      </div>
+      <div class="btn-row"><button type="submit">Сохранить позицию</button></div>
+      <p class="small muted">Если тип уже есть в комплекте — количество будет обновлено.</p>
+    </form>
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+    <form class="inline" method="post" action="/sites/{{ site.id }}/apply-template">
+      <div style="flex:2 1 200px"><label>Применить типовой комплект</label>
+        <select name="template_id" required>{% for t in templates %}<option value="{{ t.id }}">{{ t.name }} ({{ t.total_qty }} приб.)</option>{% endfor %}</select></div>
+      <button class="ghost" type="submit">Применить</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Выдать прибор на участок</h2>
+    <form method="post" action="/sites/{{ site.id }}/issue">
+      <div class="fields">
+        <div class="field"><label>Прибор (свободные, на складе)</label>
+          <select name="instrument_id" required>
+            {% for i in free_instruments %}<option value="{{ i.id }}">{{ i.inventory_no }} — {{ i.name }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label>Дата</label><input type="date" name="happened_on" value="{{ today().isoformat() }}"></div>
+        <div class="field"><label>Получил</label><input name="person" value="{{ site.responsible_name or '' }}"></div>
+        <div class="field"><label>Документ (акт)</label><input name="doc_no"></div>
+      </div>
+      <label class="small"><input type="checkbox" name="ignore_verification" value="1" style="width:auto"> выдать несмотря на просроченную поверку</label>
+      <div class="btn-row"><button type="submit">Выдать</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="btn-row">
+  <a class="btn ghost" href="/export/site-{{ site.id }}.csv">Выгрузить комплектность в CSV</a>
+  <a class="btn ghost" href="/movements?site_id={{ site.id }}">Журнал движения по участку</a>
+</div>
+{% endblock %}

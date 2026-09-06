@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Поверки — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Календарь поверок</h1>
+<p class="sub">Просроченные, истекающие в ближайшие {{ days }} дн. и приборы без данных о поверке.</p>
+
+<div class="panel">
+  <form class="inline" method="get" action="/verifications">
+    <div style="flex:0 1 200px"><label>Горизонт, дней</label><input name="days" type="number" min="1" max="365" value="{{ days }}"></div>
+    <button type="submit">Показать</button>
+    <a class="btn ghost" href="/export/verifications.csv?days={{ days }}">Выгрузить в CSV</a>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Инв. №</th><th>Наименование</th><th>Тип</th><th>Участок</th><th>Поверка до</th><th>Состояние</th><th>Интервал</th></tr>
+    {% for instrument, state in rows %}
+    <tr>
+      <td class="nowrap"><a href="/instruments/{{ instrument.id }}">{{ instrument.inventory_no }}</a></td>
+      <td>{{ instrument.name }}</td>
+      <td class="small muted">{{ instrument.type.name }}</td>
+      <td class="small">{% if instrument.current_site %}<a href="/sites/{{ instrument.current_site.id }}">{{ instrument.current_site.name }}</a>{% else %}—{% endif %}</td>
+      <td class="nowrap">{{ m.date_ru(instrument.verification_valid_until) }}</td>
+      <td>{{ m.state_badge(state) }}</td>
+      <td class="small muted nowrap">{{ instrument.type.verification_interval_months }} мес.</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="muted">Ничего не требует внимания в этом горизонте.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

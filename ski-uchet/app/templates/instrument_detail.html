@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ instrument.inventory_no }} — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>{{ instrument.inventory_no }} · {{ instrument.name }}</h1>
+<p class="sub">
+  {{ m.status_badge(instrument) }} {{ m.state_badge(state) }}
+  {% if instrument.current_site %} · участок: <a href="/sites/{{ instrument.current_site.id }}">{{ instrument.current_site.name }}</a>{% endif %}
+</p>
+
+<div class="grid two">
+  <div class="panel">
+    <h2 style="margin-top:0">Карточка прибора</h2>
+    <form method="post" action="/instruments/{{ instrument.id }}/edit">
+      <div class="fields">
+        <div class="field"><label>Наименование</label><input name="name" value="{{ instrument.name }}" required></div>
+        <div class="field"><label>Тип</label>
+          <select name="type_id">{% for t in types %}<option value="{{ t.id }}" {{ 'selected' if t.id == instrument.type_id }}>{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label>Модель</label><input name="model" value="{{ instrument.model or '' }}"></div>
+        <div class="field"><label>Производитель</label><input name="manufacturer" value="{{ instrument.manufacturer or '' }}"></div>
+        <div class="field"><label>Заводской номер</label><input name="serial_no" value="{{ instrument.serial_no or '' }}"></div>
+        <div class="field"><label>Год выпуска</label><input name="manufactured_year" value="{{ instrument.manufactured_year or '' }}"></div>
+        <div class="field"><label>Статус</label>
+          <select name="status">
+            {% for key, label in INSTRUMENT_STATUSES.items() %}<option value="{{ key }}" {{ 'selected' if key == instrument.status }}>{{ label }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label>Дата приобретения</label><input type="date" name="purchase_date" value="{{ instrument.purchase_date or '' }}"></div>
+        <div class="field"><label>Стоимость, ₽</label><input name="price" value="{{ instrument.price or '' }}"></div>
+      </div>
+      <div class="field"><label>Примечание</label><textarea name="notes">{{ instrument.notes or '' }}</textarea></div>
+      <div class="btn-row"><button type="submit">Сохранить</button><a class="btn ghost" href="/instruments">К списку</a></div>
+    </form>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2 style="margin-top:0">Движение</h2>
+      {% if instrument.current_site %}
+      <form method="post" action="/instruments/{{ instrument.id }}/return">
+        <div class="fields">
+          <div class="field"><label>Дата возврата</label><input type="date" name="happened_on" value="{{ today().isoformat() }}"></div>
+          <div class="field"><label>Сдал / принял</label><input name="person"></div>
+          <div class="field"><label>Документ (акт)</label><input name="doc_no"></div>
+          <div class="field"><label>Куда после возврата</label>
+            <select name="new_status">
+              {% for key, label in INSTRUMENT_STATUSES.items() %}{% if key != 'in_use' %}<option value="{{ key }}">{{ label }}</option>{% endif %}{% endfor %}
+            </select></div>
+        </div>
+        <div class="field"><label>Что с прибором (обязательно при возврате в ремонт)</label>
+          <input name="notes" placeholder="Сбита юстировка, не держит заряд…"></div>
+        <div class="btn-row"><button type="submit">Вернуть с участка</button></div>
+      </form>
+      {% else %}
+      <form method="post" action="/instruments/{{ instrument.id }}/issue">
+        <div class="fields">
+          <div class="field"><label>Участок</label>
+            <select name="site_id" required>{% for s in sites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Дата выдачи</label><input type="date" name="happened_on" value="{{ today().isoformat() }}"></div>
+          <div class="field"><label>Получил (ответственный)</label><input name="person"></div>
+          <div class="field"><label>Документ (акт)</label><input name="doc_no"></div>
+        </div>
+        <label class="small"><input type="checkbox" name="ignore_verification" value="1" style="width:auto"> выдать несмотря на просроченную поверку</label>
+        <div class="btn-row"><button type="submit">Выдать на участок</button></div>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top:0">Регистрация поверки</h2>
+      <form method="post" action="/instruments/{{ instrument.id }}/verification">
+        <div class="fields">
+          <div class="field"><label>Вид</label>
+            <select name="kind">{% for key, label in VERIFICATION_KINDS.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Дата проведения *</label><input type="date" name="performed_on" required value="{{ today().isoformat() }}"></div>
+          <div class="field"><label>Действует до</label><input type="date" name="valid_until" placeholder="авто по интервалу"></div>
+          <div class="field"><label>Свидетельство №</label><input name="certificate_no"></div>
+          <div class="field"><label>Организация</label><input name="organization"></div>
+          <div class="field"><label>Результат</label>
+            <select name="result">{% for key, label in VERIFICATION_RESULTS.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Стоимость, ₽</label><input name="cost"></div>
+        </div>
+        <p class="small muted">Если «Действует до» не заполнено, срок считается автоматически: +{{ instrument.type.verification_interval_months }} мес. от даты проведения (интервал типа «{{ instrument.type.name }}»).</p>
+        <div class="btn-row"><button type="submit">Зарегистрировать</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<h2>История поверок</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Вид</th><th>Проведена</th><th>Действует до</th><th>Свидетельство</th><th>Организация</th><th>Результат</th></tr>
+    {% for v in instrument.verifications %}
+    <tr>
+      <td>{{ v.kind_label }}</td>
+      <td class="nowrap">{{ m.date_ru(v.performed_on) }}</td>
+      <td class="nowrap">{{ m.date_ru(v.valid_until) }}</td>
+      <td class="small">{{ v.certificate_no or '—' }}</td>
+      <td class="small">{{ v.organization or '—' }}</td>
+      <td>{% if v.result == 'ok' %}<span class="badge ok">{{ v.result_label }}</span>{% else %}<span class="badge bad">{{ v.result_label }}</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Поверок не зарегистрировано.</td></tr>{% endfor %}
+  </table>
+</div>
+
+<h2>История перемещений</h2>
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Дата</th><th>Операция</th><th>Участок</th><th>Ответственный</th><th>Документ</th></tr>
+    {% for mv in instrument.movements %}
+    <tr>
+      <td class="nowrap">{{ m.date_ru(mv.happened_on) }}</td>
+      <td>{% if mv.action == 'issue' %}<span class="badge ok">{{ mv.action_label }}</span>{% else %}<span class="badge neutral">{{ mv.action_label }}</span>{% endif %}</td>
+      <td class="small"><a href="/sites/{{ mv.site_id }}">{{ mv.site.name }}</a></td>
+      <td class="small">{{ mv.person or '—' }}</td>
+      <td class="small">{{ mv.doc_no or '—' }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">Перемещений не было.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}
