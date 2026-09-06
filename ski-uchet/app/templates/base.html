@@ -11,30 +11,56 @@
 <header class="top">
   <span class="brand">Учёт СКИ</span>
   <nav>
-    {# Подсветка открытого раздела: `section` считает render() по первому
-       куску пути, поэтому карточка прибора подсвечивает «Приборы».
+    {# Разделы сгруппированы. Пятнадцать кнопок в ряд не помещались даже
+       на широком экране: приёмка показала, что на 1280 скрыто 7 из 15,
+       а на 900 видны только четыре. Полоса прокрутки была единственным
+       признаком, что разделы продолжаются, — и, спрятав её, я не починил,
+       а замаскировал беду.
+
+       Наверху осталось то, куда ходят каждый день; редкое — в списках.
+       Подсветка группы работает как у обычного раздела: `section` считает
+       render() по первому куску пути, поэтому карточка прибора подсвечивает
+       «Приборы», а страница поверок — «Справочники».
+
        Скрытый раздел не есть запрет: право проверяется и на маршруте —
        здесь мы лишь не показываем то, чем человек не воспользуется. #}
     <a href="/" class="{{ 'active' if section == 'dashboard' }}">Сводка</a>
     <a href="/warehouse" class="{{ 'active' if section == 'warehouse' }}">Склад</a>
     <a href="/instruments" class="{{ 'active' if section == 'instruments' }}">Приборы</a>
-    {% if user.can('instrument.edit') %}
-    <a href="/import" class="{{ 'active' if section == 'import' }}">Импорт</a>
-    {% endif %}
     <a href="/sites" class="{{ 'active' if section == 'sites' }}">Участки</a>
     <a href="/requests" class="{{ 'active' if section == 'requests' }}">Заявки</a>
-    <a href="/templates" class="{{ 'active' if section == 'templates' }}">Типовые комплекты</a>
-    <a href="/contracts" class="{{ 'active' if section == 'contracts' }}">Договоры</a>
-    <a href="/verifications" class="{{ 'active' if section == 'verifications' }}">Поверки</a>
-    <a href="/movements" class="{{ 'active' if section == 'movements' }}">Журнал движения</a>
-    {% if user.can('audit.view') %}
-    <a href="/audit" class="{{ 'active' if section == 'audit' }}">Журнал действий</a>
-    {% endif %}
-    <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
-    {% if user.can('user.manage') %}
-    <a href="/users" class="{{ 'active' if section == 'users' }}">Пользователи</a>
-    <a href="/bot" class="{{ 'active' if section == 'bot' }}">Бот</a>
-    <a href="/backups" class="{{ 'active' if section == 'backups' }}">Копии</a>
+
+    <div class="menu {{ 'active' if section in ['movements', 'audit', 'notifications'] }}">
+      <button type="button">Журналы</button>
+      <div class="drop">
+        <a href="/movements">Журнал движения</a>
+        {% if user.can('audit.view') %}<a href="/audit">Журнал действий</a>{% endif %}
+        <a href="/notifications">Уведомления</a>
+      </div>
+    </div>
+
+    <div class="menu {{ 'active' if section in ['types', 'contracts', 'templates', 'verifications'] }}">
+      <button type="button">Справочники</button>
+      <div class="drop">
+        <a href="/verifications">Поверки</a>
+        <a href="/contracts">Договоры</a>
+        <a href="/templates">Типовые комплекты</a>
+        <a href="/types">Справочник типов</a>
+      </div>
+    </div>
+
+    {% if user.can('user.manage') or user.can('instrument.edit') %}
+    <div class="menu {{ 'active' if section in ['users', 'bot', 'backups', 'import'] }}">
+      <button type="button">Настройки</button>
+      <div class="drop">
+        {% if user.can('instrument.edit') %}<a href="/import">Импорт реестра</a>{% endif %}
+        {% if user.can('user.manage') %}
+        <a href="/users">Пользователи</a>
+        <a href="/bot">Бот в MAX</a>
+        <a href="/backups">Резервные копии</a>
+        {% endif %}
+      </div>
+    </div>
     {% endif %}
   </nav>
   {# Подпись вошедшего и выход — у правого края. «Выйти» рядом с разделами
@@ -42,9 +68,14 @@
   <div class="whoami">
     {# Значок непрочитанных стоит рядом с именем, а не в ряду разделов:
        это не место, куда ходят, а сигнал, что тебя ждёт сообщение. #}
-    <a href="/notifications" class="bell {{ 'has-unread' if unread }}">
-      Уведомления{% if unread %} <span class="count">{{ unread }}</span>{% endif %}
+    {# Значок показывается ТОЛЬКО когда есть непрочитанное: сам раздел
+       уехал в список «Журналы», а здесь остался сигнал. Постоянно
+       висящий значок перестают замечать через неделю. #}
+    {% if unread %}
+    <a href="/notifications" class="bell has-unread" title="Непрочитанные уведомления">
+      <span class="count">{{ unread }}</span>
     </a>
+    {% endif %}
     <span title="{{ user.login }}">{{ user.title }}</span>
     <a href="/logout" class="logout">Выйти</a>
   </div>
