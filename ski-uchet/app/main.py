@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import (
     attachments,
+    audit,
     backup,
     bot,
     importer,
@@ -935,6 +936,7 @@ def instrument_new_form(request: Request, db: Session = Depends(get_session)):
 
 @app.post("/instruments/new")
 def instrument_create(
+    request: Request,
     inventory_no: str = Form(...),
     name: str = Form(...),
     type_id: int = Form(...),
@@ -967,7 +969,28 @@ def instrument_create(
         db.commit()
     except IntegrityError:
         db.rollback()
-        return redirect("/instruments/new", err=f"Инвентарный номер {inventory_no} уже занят")
+        # Возвращаем ФОРМУ С ВВЕДЁННЫМ, а не переадресацию на пустую.
+        # Приёмка: человек набирал десяток полей, ошибался в номере —
+        # и всё стиралось. Заполнять заново из-за одной строки обидно.
+        return render(
+            request,
+            "instrument_form.html",
+            types=db.scalars(select(InstrumentType).order_by(InstrumentType.name)).all(),
+            err=f"Инвентарный номер {inventory_no} уже занят",
+            values={
+                "inventory_no": inventory_no,
+                "name": name,
+                "type_id": type_id,
+                "model": model,
+                "manufacturer": manufacturer,
+                "serial_no": serial_no,
+                "manufactured_year": manufactured_year,
+                "status": status,
+                "purchase_date": purchase_date,
+                "price": price,
+                "notes": notes,
+            },
+        )
     return redirect(f"/instruments/{instrument.id}", msg="Прибор добавлен")
 
 
@@ -1249,6 +1272,105 @@ def site_detail(request: Request, site_id: int, db: Session = Depends(get_sessio
     )
 
 
+@app.post("/contracts/{contract_id}/edit")
+def contract_edit(
+    contract_id: int,
+    number: str = Form(...),
+    title: str = Form(...),
+    customer: str = Form(...),
+    signed_on: str = Form(""),
+    valid_until: str = Form(""),
+    status: str = Form("active"),
+    notes: str = Form(""),
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.CONTRACT_EDIT)),
+):
+    """Поправить договор.
+
+    Приёмка: договоры были только на запись — нельзя закрыть, продлить
+    или исправить срок. А срок договора это то, что меняется чаще всего.
+    """
+    contract = db.get(Contract, contract_id)
+    if contract is None:
+        return redirect("/contracts", err="Договор не найден")
+
+    was_status = contract.status_label
+    contract.number = number.strip()
+    contract.title = title.strip()
+    contract.customer = customer.strip()
+    contract.signed_on = parse_date(signed_on)
+    contract.valid_until = parse_date(valid_until)
+    contract.status = status
+    contract.notes = notes.strip() or None
+
+    try:
+        db.flush()
+        audit.write(
+            db,
+            "Изменён договор",
+            actor=actor.name,
+            object_type="contract",
+            object_id=contract.id,
+            details=f"{contract.number}"
+            + (f"; состояние: {was_status} → {contract.status_label}"
+               if was_status != contract.status_label else ""),
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return redirect("/contracts", err=f"Договор «{number}» уже заведён")
+
+    return redirect("/contracts", msg=f"Договор {contract.number} изменён")
+
+
+@app.post("/sites/{site_id}/edit")
+def site_edit(
+    site_id: int,
+    name: str = Form(...),
+    address: str = Form(""),
+    responsible_name: str = Form(""),
+    responsible_phone: str = Form(""),
+    status: str = Form("active"),
+    annex_no: str = Form(""),
+    annex_date: str = Form(""),
+    notes: str = Form(""),
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.SITE_EDIT)),
+):
+    """Поправить реквизиты участка.
+
+    Приёмка: задавались только при создании — нельзя было сменить
+    ответственного, телефон или законсервировать участок.
+    """
+    site = db.get(Site, site_id)
+    if site is None:
+        return redirect("/sites", err="Участок не найден")
+
+    was_status = site.status_label
+    site.name = name.strip()
+    site.address = address.strip() or None
+    site.responsible_name = responsible_name.strip() or None
+    site.responsible_phone = responsible_phone.strip() or None
+    site.status = status
+    site.annex_no = annex_no.strip() or None
+    site.annex_date = parse_date(annex_date)
+    site.notes = notes.strip() or None
+
+    db.flush()
+    audit.write(
+        db,
+        "Изменён участок",
+        actor=actor.name,
+        object_type="site",
+        object_id=site.id,
+        details=f"{site.name}"
+        + (f"; состояние: {was_status} → {site.status_label}"
+           if was_status != site.status_label else ""),
+    )
+    db.commit()
+    return redirect(f"/sites/{site.id}", msg="Реквизиты участка изменены")
+
+
 @app.post("/sites/{site_id}/kit")
 def site_kit_add(
     site_id: int,
@@ -1329,6 +1451,58 @@ def types_list(request: Request, db: Session = Depends(get_session)):
         )
     ).all()
     return render(request, "types.html", types=types)
+
+
+@app.post("/types/{type_id}/edit")
+def type_edit(
+    type_id: int,
+    name: str = Form(...),
+    category: str = Form("other"),
+    requires_verification: str = Form(""),
+    verification_interval_months: int = Form(12),
+    notes: str = Form(""),
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.CATALOG_EDIT)),
+):
+    """Поправить тип прибора.
+
+    Приёмка: справочник был только на запись — нельзя было исправить
+    межповерочный интервал, а он задаёт срок действия поверки для всех
+    приборов этого типа. Ошиблись при заведении — жили с ошибкой.
+    """
+    kind = db.get(InstrumentType, type_id)
+    if kind is None:
+        return redirect("/types", err="Тип не найден")
+
+    was = f"{kind.name}, интервал {kind.verification_interval_months} мес."
+    kind.name = name.strip()
+    kind.category = category
+    kind.requires_verification = bool(requires_verification)
+    kind.verification_interval_months = verification_interval_months
+    kind.notes = notes.strip() or None
+
+    try:
+        db.flush()
+        audit.write(
+            db,
+            "Изменён тип прибора",
+            actor=actor.name,
+            object_type="instrument_type",
+            object_id=kind.id,
+            details=f"было: {was}; стало: {kind.name}, "
+            f"интервал {kind.verification_interval_months} мес.",
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return redirect("/types", err=f"Тип «{name}» уже есть в справочнике")
+
+    # Интервал меняет расчётные сроки поверок — говорим об этом прямо.
+    return redirect(
+        "/types",
+        msg=f"Тип «{kind.name}» изменён. Сроки поверок пересчитаются "
+        "при следующей регистрации.",
+    )
 
 
 @app.post("/types/new")
@@ -1559,6 +1733,73 @@ def template_add_item(
         )
     db.commit()
     return redirect("/templates", msg="Позиция сохранена")
+
+
+@app.post("/templates/{template_id}/item/{item_id}/delete")
+def template_item_delete(
+    template_id: int,
+    item_id: int,
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
+):
+    """Убрать позицию из типового комплекта.
+
+    Приёмка: удаления не было вовсе — ошибочно добавленный тип оставался
+    в комплекте навсегда и попадал на каждый участок, куда его применяли.
+    """
+    item = db.get(KitTemplateItem, item_id)
+    if item is None or item.template_id != template_id:
+        return redirect("/templates", err="Позиция не найдена")
+
+    name = item.type.name
+    db.delete(item)
+    db.flush()
+    audit.write(
+        db,
+        "Удалена позиция типового комплекта",
+        actor=actor.name,
+        object_type="kit_template",
+        object_id=template_id,
+        details=name,
+    )
+    db.commit()
+    return redirect("/templates", msg=f"«{name}» убран из комплекта")
+
+
+@app.post("/templates/{template_id}/delete")
+def template_delete(
+    template_id: int,
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
+):
+    """Удалить типовой комплект целиком.
+
+    Только пустой: комплект с позициями удаляют по одной, чтобы случайное
+    нажатие не стёрло работу целиком.
+    """
+    template = db.get(KitTemplate, template_id)
+    if template is None:
+        return redirect("/templates", err="Комплект не найден")
+    if template.items:
+        return redirect(
+            "/templates",
+            err=f"В комплекте «{template.name}» есть позиции — "
+            "уберите их сначала, чтобы удаление не стёрло работу разом",
+        )
+
+    name = template.name
+    db.delete(template)
+    db.flush()
+    audit.write(
+        db,
+        "Удалён типовой комплект",
+        actor=actor.name,
+        object_type="kit_template",
+        object_id=template_id,
+        details=name,
+    )
+    db.commit()
+    return redirect("/templates", msg=f"Комплект «{name}» удалён")
 
 
 @app.post("/sites/{site_id}/apply-template")

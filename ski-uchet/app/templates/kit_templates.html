@@ -8,14 +8,34 @@
 <div class="grid two">
   {% for t in templates_list %}
   <div class="panel">
-    <h2 style="margin-top:0">{{ t.name }}</h2>
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px">
+      <h2 style="margin-top:0">{{ t.name }}</h2>
+      {# Удалить можно только пустой комплект: с позициями удаляют по одной,
+         чтобы случайное нажатие не стёрло работу разом. #}
+      {% if user.can('kit.edit') and not t.items %}
+      <form method="post" action="/templates/{{ t.id }}/delete"
+            onsubmit="return confirm('Удалить комплект «{{ t.name }}»?')">
+        <button type="submit" class="btn ghost">Удалить</button>
+      </form>
+      {% endif %}
+    </div>
     <p class="small muted">{{ t.notes or '' }} Позиций: {{ t.items|length }}, приборов: {{ t.total_qty }}</p>
     <div class="table-wrap">
       <table>
-        <tr><th>Тип прибора</th><th class="right">Кол-во</th></tr>
+        <tr><th>Тип прибора</th><th class="right">Кол-во</th><th></th></tr>
         {% for item in t.items|sort(attribute='type.name') %}
-        <tr><td>{{ item.type.name }}</td><td class="right">{{ item.required_qty }}</td></tr>
-        {% else %}<tr><td colspan="2" class="muted">Пусто</td></tr>{% endfor %}
+        <tr>
+          <td>{{ item.type.name }}</td>
+          <td class="right">{{ item.required_qty }}</td>
+          <td class="nowrap">
+            <form method="post" action="/templates/{{ t.id }}/item/{{ item.id }}/delete"
+                  onsubmit="return confirm('Убрать «{{ item.type.name }}» из комплекта?')"
+                  style="display:inline">
+              <button type="submit" class="btn ghost">Убрать</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="3" class="muted">Пусто</td></tr>{% endfor %}
       </table>
     </div>
     <form class="inline" method="post" action="/templates/{{ t.id }}/item" style="margin-top:12px">

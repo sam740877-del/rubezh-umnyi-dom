@@ -100,13 +100,30 @@ def test_issue_flow_via_forms(client):
 
 
 def test_duplicate_inventory_number_rejected(client):
+    """Повтор инвентарного номера отвергается, а введённое НЕ теряется.
+
+    Раньше здесь была переадресация на пустую форму: человек набирал
+    десяток полей, ошибался в номере — и всё стиралось. Заполнять заново
+    из-за одной строки обидно, и это заметила приёмка.
+    """
     response = client.post(
         "/instruments/new",
-        data={"inventory_no": "СКИ-001", "name": "Дубль", "type_id": "1"},
+        data={
+            "inventory_no": "СКИ-001",
+            "name": "Дубль",
+            "type_id": "1",
+            "serial_no": "ЗАВ-9999",
+            "manufacturer": "Завод-изготовитель",
+        },
         follow_redirects=False,
     )
-    assert response.status_code == 303
-    assert "err=" in response.headers["location"]
+
+    assert response.status_code == 200, "форма должна вернуться, а не переадресовать"
+    assert "уже занят" in response.text, "не сказано, что не так"
+    # Введённое на месте — иначе человек набирает всё заново.
+    assert "Дубль" in response.text
+    assert "ЗАВ-9999" in response.text
+    assert "Завод-изготовитель" in response.text
 
 
 # --------------------------------------------------------------------------
@@ -185,3 +202,110 @@ def test_new_instrument_form_has_no_preselected_type(client) -> None:
     page = client.get("/instruments/new").text
 
     assert "— выберите тип —" in page, "нет пустого первого пункта"
+
+
+def test_catalogs_can_be_corrected(client, session) -> None:
+    """Справочники правятся, а не только заполняются.
+
+    Приёмка: типы, договоры и участки были только на запись. Межповерочный
+    интервал задаёт срок действия поверки для всех приборов типа —
+    ошиблись при заведении, жили с ошибкой. Договор нельзя было закрыть
+    или продлить, у участка сменить ответственного.
+    """
+    from app.models import Contract, InstrumentType, Site
+
+    kind = session.query(InstrumentType).first()
+    response = client.post(
+        f"/types/{kind.id}/edit",
+        data={
+            "name": kind.name,
+            "category": kind.category,
+            "requires_verification": "1",
+            "verification_interval_months": "24",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    session.expire_all()
+    assert session.get(InstrumentType, kind.id).verification_interval_months == 24
+
+    contract = session.query(Contract).first()
+    response = client.post(
+        f"/contracts/{contract.id}/edit",
+        data={
+            "number": contract.number,
+            "title": contract.title,
+            "customer": contract.customer,
+            "signed_on": "",
+            "valid_until": "",
+            "status": "closed",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    session.expire_all()
+    assert session.get(Contract, contract.id).status == "closed"
+
+    site = session.query(Site).first()
+    response = client.post(
+        f"/sites/{site.id}/edit",
+        data={
+            "name": site.name,
+            "address": "",
+            "responsible_name": "Новый ответственный",
+            "responsible_phone": "",
+            "status": "mothballed",
+            "annex_no": "",
+            "annex_date": "",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    session.expire_all()
+    changed = session.get(Site, site.id)
+    assert changed.responsible_name == "Новый ответственный"
+    assert changed.status == "mothballed"
+
+
+def test_template_item_can_be_removed(client, session) -> None:
+    """Позицию типового комплекта можно убрать.
+
+    Приёмка: удаления не было вовсе — ошибочно добавленный тип оставался
+    навсегда и попадал на каждый участок, куда применяли комплект.
+    """
+    from app.models import KitTemplate, KitTemplateItem
+
+    template = session.query(KitTemplate).filter(KitTemplate.items.any()).first()
+    assert template is not None, "в демо-данных есть комплект с позициями"
+    item = template.items[0]
+    item_id = item.id
+
+    response = client.post(
+        f"/templates/{template.id}/item/{item_id}/delete", follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    session.expire_all()
+    assert session.get(KitTemplateItem, item_id) is None, "позиция осталась"
+
+
+def test_template_with_items_is_not_deleted_by_accident(client, session) -> None:
+    """Комплект с позициями не удаляется одним нажатием.
+
+    Иначе случайное нажатие стирает работу целиком. Сперва уберите
+    позиции — тогда видно, что удаляешь.
+    """
+    from app.models import KitTemplate
+
+    template = session.query(KitTemplate).filter(KitTemplate.items.any()).first()
+    template_id = template.id
+
+    response = client.post(f"/templates/{template_id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert "err=" in response.headers["location"]
+    session.expire_all()
+    assert session.get(KitTemplate, template_id) is not None, "комплект удалён разом"

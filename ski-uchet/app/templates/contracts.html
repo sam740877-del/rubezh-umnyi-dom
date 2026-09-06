@@ -7,7 +7,7 @@
 
 <div class="panel table-wrap">
   <table>
-    <tr><th>Номер</th><th>Предмет</th><th>Заказчик</th><th>Срок</th><th>Участки</th><th>Статус</th></tr>
+    <tr><th>Номер</th><th>Предмет</th><th>Заказчик</th><th>Срок</th><th>Участки</th><th>Статус</th>{% if user.can('contract.edit') %}<th></th>{% endif %}</tr>
     {% for c in contracts %}
     <tr>
       <td class="nowrap"><strong>{{ c.number }}</strong></td>
@@ -19,8 +19,41 @@
         {% else %}<span class="muted">—</span>{% endfor %}
       </td>
       <td><span class="badge {{ 'ok' if c.status == 'active' else 'neutral' }}">{{ c.status_label }}</span></td>
+      {% if user.can('contract.edit') %}
+      <td class="nowrap"><button type="button" class="btn ghost"
+        onclick="document.getElementById('c-{{ c.id }}').hidden = !document.getElementById('c-{{ c.id }}').hidden">Изменить</button></td>
+      {% endif %}
     </tr>
-    {% else %}<tr><td colspan="6" class="muted">Договоров нет.</td></tr>{% endfor %}
+    {% if user.can('contract.edit') %}
+    {# Правка в строке: договоров немного, и чаще всего меняют одно —
+       срок или состояние. Отдельный экран ради этого лишний. #}
+    <tr id="c-{{ c.id }}" hidden>
+      <td colspan="7">
+        <form class="inline" method="post" action="/contracts/{{ c.id }}/edit">
+          <div style="flex:1 1 140px"><label>Номер</label>
+            <input name="number" value="{{ c.number }}" required></div>
+          <div style="flex:2 1 200px"><label>Предмет</label>
+            <input name="title" value="{{ c.title }}" required></div>
+          <div style="flex:1 1 180px"><label>Заказчик</label>
+            <input name="customer" value="{{ c.customer }}" required></div>
+          <div style="flex:0 1 150px"><label>Подписан</label>
+            <input type="date" name="signed_on" value="{{ c.signed_on.isoformat() if c.signed_on }}"></div>
+          <div style="flex:0 1 150px"><label>Действует до</label>
+            <input type="date" name="valid_until" value="{{ c.valid_until.isoformat() if c.valid_until }}"></div>
+          <div style="flex:0 1 160px"><label>Состояние</label>
+            <select name="status">
+              {% for key, title in CONTRACT_STATUSES.items() %}
+              <option value="{{ key }}" {{ 'selected' if c.status == key }}>{{ title }}</option>
+              {% endfor %}
+            </select></div>
+          <div style="flex:1 1 180px"><label>Примечание</label>
+            <input name="notes" value="{{ c.notes or '' }}"></div>
+          <button type="submit">Сохранить</button>
+        </form>
+      </td>
+    </tr>
+    {% endif %}
+    {% else %}<tr><td colspan="7" class="muted">Договоров нет.</td></tr>{% endfor %}
   </table>
 </div>
 

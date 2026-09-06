@@ -6,16 +6,55 @@
 
 <div class="panel table-wrap">
   <table>
-    <tr><th>Категория</th><th>Тип</th><th>Поверка</th><th>Интервал</th><th>Приборов</th></tr>
+    <tr><th>Категория</th><th>Тип</th><th>Поверка</th><th>Интервал</th><th>Приборов</th>
+      {% if user.can('catalog.edit') %}<th></th>{% endif %}</tr>
     {% for t in types %}
     <tr>
       <td class="small muted">{{ t.category_label }}</td>
       <td>{{ t.name }}{% if t.notes %}<div class="small muted">{{ t.notes }}</div>{% endif %}</td>
       <td>{% if t.requires_verification %}<span class="badge ok">требуется</span>{% else %}<span class="badge neutral">не требуется</span>{% endif %}</td>
-      <td class="small nowrap">{{ t.verification_interval_months }} мес.</td>
+      {# Интервал показываем, только когда поверка нужна: «не требуется»
+         рядом с «12 мес.» — противоречие, которое сбивает с толку. #}
+      <td class="small nowrap">{{ t.verification_interval_months ~ ' мес.' if t.requires_verification else '—' }}</td>
       <td class="right"><a href="/instruments?type_id={{ t.id }}">{{ t.instruments|length }}</a></td>
+      {% if user.can('catalog.edit') %}
+      <td class="nowrap"><button type="button" class="btn ghost"
+        onclick="document.getElementById('edit-{{ t.id }}').hidden = !document.getElementById('edit-{{ t.id }}').hidden">Изменить</button></td>
+      {% endif %}
     </tr>
-    {% else %}<tr><td colspan="5" class="muted">Справочник пуст — запустите <code>python manage.py seed-types</code>.</td></tr>{% endfor %}
+    {% if user.can('catalog.edit') %}
+    {# Правка в строке, а не отдельным экраном: типов десятки, ходить
+       туда-обратно ради одного числа — лишние шаги. #}
+    <tr id="edit-{{ t.id }}" hidden>
+      <td colspan="6">
+        <form class="inline" method="post" action="/types/{{ t.id }}/edit">
+          <div style="flex:1 1 220px"><label>Название</label>
+            <input name="name" value="{{ t.name }}" required></div>
+          <div style="flex:1 1 160px"><label>Категория</label>
+            <select name="category">
+              {% for key, title in CATEGORIES.items() %}
+              <option value="{{ key }}" {{ 'selected' if t.category == key }}>{{ title }}</option>
+              {% endfor %}
+            </select></div>
+          <div style="flex:0 1 auto"><label>Поверка</label>
+            <select name="requires_verification">
+              <option value="1" {{ 'selected' if t.requires_verification }}>требуется</option>
+              <option value="" {{ 'selected' if not t.requires_verification }}>не требуется</option>
+            </select></div>
+          <div style="flex:0 1 110px"><label>Интервал, мес.</label>
+            <input name="verification_interval_months" type="number" min="1"
+                   value="{{ t.verification_interval_months }}"></div>
+          <div style="flex:1 1 180px"><label>Примечание</label>
+            <input name="notes" value="{{ t.notes or '' }}"></div>
+          <button type="submit">Сохранить</button>
+        </form>
+        <p class="small muted" style="margin:8px 0 0">Интервал задаёт срок действия
+        поверки. Уже зарегистрированные поверки не пересчитываются — изменение
+        подействует на следующие.</p>
+      </td>
+    </tr>
+    {% endif %}
+    {% else %}<tr><td colspan="6" class="muted">Справочник пуст — запустите <code>python manage.py seed-types</code>.</td></tr>{% endfor %}
   </table>
 </div>
 

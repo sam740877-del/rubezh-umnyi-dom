@@ -1,13 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Новый прибор — Учёт СКИ{% endblock %}
 {% block content %}
+{# `values` приходит, когда форма вернулась с ошибкой: подставляем
+   введённое, чтобы человек не набирал десяток полей заново из-за
+   одной опечатки в номере. #}
+{% set v = values | default({}) %}
 <h1>Новый прибор</h1>
 <p class="sub">Инвентарный номер должен быть уникальным — по нему прибор ищется в журналах.</p>
 <div class="panel">
   <form method="post" action="/instruments/new">
     <div class="fields">
-      <div class="field"><label>Инвентарный номер *</label><input name="inventory_no" required placeholder="СКИ-025"></div>
-      <div class="field"><label>Наименование *</label><input name="name" required placeholder="Нивелир оптический Sokkia B40"></div>
+      <div class="field"><label>Инвентарный номер *</label><input name="inventory_no" required placeholder="СКИ-025" value="{{ v.inventory_no or '' }}"></div>
+      <div class="field"><label>Наименование *</label><input name="name" required placeholder="Нивелир оптический Sokkia B40" value="{{ v.name or '' }}"></div>
       {# Тип на всю строку: названия вроде «Измеритель прочности бетона
          ударно-импульсный» в колонку 190 точек не помещаются, а тип
          задаёт межповерочный интервал — человек должен видеть, что выбрал. #}
@@ -16,20 +20,20 @@
           {# Пустой первый пункт: без него выбран первый по алфавиту,
              и прибор легко сохранить с чужим типом и чужим интервалом. #}
           <option value="">— выберите тип —</option>
-          {% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+          {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if v.type_id == t.id }}>{{ t.name }}</option>{% endfor %}
         </select></div>
-      <div class="field"><label>Модель</label><input name="model"></div>
-      <div class="field"><label>Производитель</label><input name="manufacturer"></div>
-      <div class="field"><label>Заводской номер</label><input name="serial_no"></div>
-      <div class="field"><label>Год выпуска</label><input name="manufactured_year" inputmode="numeric"></div>
+      <div class="field"><label>Модель</label><input name="model" value="{{ v.model or '' }}"></div>
+      <div class="field"><label>Производитель</label><input name="manufacturer" value="{{ v.manufacturer or '' }}"></div>
+      <div class="field"><label>Заводской номер</label><input name="serial_no" value="{{ v.serial_no or '' }}"></div>
+      <div class="field"><label>Год выпуска</label><input name="manufactured_year" inputmode="numeric" value="{{ v.manufactured_year or '' }}"></div>
       <div class="field"><label>Статус</label>
         <select name="status">
-          {% for key, label in INSTRUMENT_STATUSES.items() %}{% if key != 'in_use' %}<option value="{{ key }}">{{ label }}</option>{% endif %}{% endfor %}
+          {% for key, label in INSTRUMENT_STATUSES.items() %}{% if key != 'in_use' %}<option value="{{ key }}" {{ 'selected' if v.status == key }}>{{ label }}</option>{% endif %}{% endfor %}
         </select></div>
-      <div class="field"><label>Дата приобретения</label><input type="date" name="purchase_date"></div>
-      <div class="field"><label>Стоимость, ₽</label><input name="price" inputmode="decimal"></div>
+      <div class="field"><label>Дата приобретения</label><input type="date" name="purchase_date" value="{{ v.purchase_date or '' }}"></div>
+      <div class="field"><label>Стоимость, ₽</label><input name="price" inputmode="decimal" value="{{ v.price or '' }}"></div>
     </div>
-    <div class="field"><label>Примечание</label><textarea name="notes"></textarea></div>
+    <div class="field"><label>Примечание</label><textarea name="notes">{{ v.notes or '' }}</textarea></div>
     <div class="btn-row"><button type="submit">Сохранить</button><a class="btn ghost" href="/instruments">Отмена</a></div>
   </form>
 </div>

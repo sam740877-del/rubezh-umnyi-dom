@@ -8,7 +8,45 @@
   {% if site.address %} · {{ site.address }}{% endif %}
   {% if site.responsible_name %} · ответственный: {{ site.responsible_name }} {{ site.responsible_phone or '' }}{% endif %}
   {% if site.annex_no %}<br>Комплект закреплён приложением № {{ site.annex_no }}{% if site.annex_date %} от {{ m.date_ru(site.annex_date) }}{% endif %} к договору{% endif %}
+  {% if site.status != 'active' %}<br><span class="badge neutral">{{ site.status_label }}</span>{% endif %}
 </p>
+
+{% if user.can('site.edit') %}
+{# Реквизиты правятся. Приёмка: задавались только при создании — нельзя
+   было сменить ответственного, телефон или законсервировать участок. #}
+<div class="btn-row" style="margin-bottom:14px">
+  <button type="button" class="btn ghost"
+    onclick="document.getElementById('site-edit').hidden = !document.getElementById('site-edit').hidden">Изменить участок</button>
+</div>
+<div class="panel" id="site-edit" hidden>
+  <h2 style="margin-top:0">Реквизиты участка</h2>
+  <form method="post" action="/sites/{{ site.id }}/edit">
+    <div class="fields">
+      <div class="field"><label>Название</label>
+        <input name="name" value="{{ site.name }}" required></div>
+      <div class="field"><label>Адрес</label>
+        <input name="address" value="{{ site.address or '' }}"></div>
+      <div class="field"><label>Ответственный</label>
+        <input name="responsible_name" value="{{ site.responsible_name or '' }}"></div>
+      <div class="field"><label>Телефон</label>
+        <input name="responsible_phone" value="{{ site.responsible_phone or '' }}"></div>
+      <div class="field"><label>Состояние</label>
+        <select name="status">
+          {% for key, title in SITE_STATUSES.items() %}
+          <option value="{{ key }}" {{ 'selected' if site.status == key }}>{{ title }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="field"><label>Приложение к договору №</label>
+        <input name="annex_no" value="{{ site.annex_no or '' }}"></div>
+      <div class="field"><label>Дата приложения</label>
+        <input type="date" name="annex_date" value="{{ site.annex_date.isoformat() if site.annex_date }}"></div>
+      <div class="field wide"><label>Примечание</label>
+        <input name="notes" value="{{ site.notes or '' }}"></div>
+    </div>
+    <div class="btn-row"><button type="submit">Сохранить</button></div>
+  </form>
+</div>
+{% endif %}
 
 <div class="grid cards">
   <div class="card"><div class="num">{{ report.percent }}%</div><div class="lbl">укомплектованность</div></div>
