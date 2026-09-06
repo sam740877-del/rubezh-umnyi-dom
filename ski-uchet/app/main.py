@@ -25,6 +25,7 @@ from app import (
     attachments,
     backup,
     bot,
+    importer,
     max_api,
     notifications,
     security,
@@ -678,6 +679,82 @@ def bot_link_revoke(
     except bot.BotError as exc:
         return redirect("/bot", err=str(exc))
     return redirect("/bot", msg="Доступ отключён")
+
+
+# --------------------------------------------------------------------------
+# Импорт реестра из Excel
+# --------------------------------------------------------------------------
+
+#: Куда кладём загруженный файл между двумя шагами. Держать его в памяти
+#: процесса нельзя: между «прочитать» и «загрузить» человек уходит смотреть
+#: отчёт, а сервер за это время может перезапуститься.
+UPLOAD_DIR = BASE_DIR.parent / "uploads"
+
+
+@app.get("/import", response_class=HTMLResponse)
+def import_form(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
+):
+    """Страница импорта."""
+    return render(request, "import.html", report=None, preview_rows=importer.PREVIEW_ROWS)
+
+
+@app.post("/import", response_class=HTMLResponse)
+async def import_read(
+    request: Request,
+    file: UploadFile = File(...),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
+    db: Session = Depends(get_session),
+):
+    """Прочитать файл и показать отчёт. В базу ничего не пишет."""
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    name = attachments.safe_name(file.filename or "реестр.xlsx")
+    stored = UPLOAD_DIR / f"{datetime.now():%Y%m%d_%H%M%S}_{name}"
+
+    try:
+        stored.write_bytes(await file.read())
+        report = importer.read_file(stored)
+        importer.check_duplicates(db, report)
+    except importer.ImportError_ as exc:
+        stored.unlink(missing_ok=True)
+        return redirect("/import", err=str(exc))
+
+    return render(
+        request,
+        "import.html",
+        report=report,
+        stored_file=stored.name,
+        preview_rows=importer.PREVIEW_ROWS,
+    )
+
+
+@app.post("/import/apply")
+def import_apply(
+    stored_file: str = Form(...),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
+    db: Session = Depends(get_session),
+):
+    """Записать в базу то, что прошло проверку."""
+    # Имя приходит из формы, то есть от человека: берём только имя файла
+    # и только из своей папки, иначе подстановка пути прочитала бы чужое.
+    stored = UPLOAD_DIR / Path(stored_file).name
+    if not stored.exists() or stored.parent != UPLOAD_DIR:
+        return redirect("/import", err="Файл не найден — прочитайте его заново")
+
+    try:
+        report = importer.read_file(stored)
+        importer.check_duplicates(db, report)
+        importer.apply_import(db, report, actor=actor.name)
+        db.commit()
+    except importer.ImportError_ as exc:
+        return redirect("/import", err=str(exc))
+
+    stored.unlink(missing_ok=True)
+    message = f"Загружено приборов: {report.imported}"
+    if report.created_types:
+        message += f". Заведено новых типов: {len(report.created_types)} — проверьте интервалы"
+    return redirect("/instruments", msg=message)
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:

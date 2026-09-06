@@ -55,6 +55,7 @@ CORE_MODULES = (
     "notifications.py",
     "backup.py",
     "bot.py",
+    "importer.py",
 )
 
 #: Пакеты интерфейса. Слой логики не имеет права о них знать.

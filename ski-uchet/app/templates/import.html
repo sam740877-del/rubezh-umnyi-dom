@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Импорт реестра — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Импорт реестра приборов</h1>
+<p class="sub">Загрузка реестра из Excel. Сначала показываем, что прочитали,
+и только после подтверждения пишем в базу.</p>
+
+<div class="panel">
+  <form class="inline" method="post" action="/import" enctype="multipart/form-data">
+    <div style="flex:2 1 260px"><label>Файл реестра (.xlsx)</label>
+      <input type="file" name="file" accept=".xlsx,.xlsm" required></div>
+    <button type="submit">Прочитать файл</button>
+  </form>
+  <p class="small muted" style="margin-top:10px">
+    Заголовки столбцов ищутся по смыслу: «Инв. №», «Инвентарный номер»,
+    «Учётный номер» — всё это одно и то же. Неузнанные столбцы будут показаны.
+  </p>
+</div>
+
+{% if report %}
+<h2>Что прочитано</h2>
+
+<div class="panel">
+  <p><b>{{ report.summary }}</b></p>
+  {% if report.unknown_columns %}
+  <p class="small">Столбцы, которые не удалось узнать (данные из них не загрузятся):
+    {% for c in report.unknown_columns %}<code>{{ c }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</div>
+
+{% if report.rejected %}
+<div class="panel">
+  <h2>Отклонённые строки</h2>
+  <p class="sub">Эти строки в базу не попадут. Поправьте файл и загрузите заново —
+  уже загруженное не задвоится.</p>
+  <table>
+    <tr><th>Строка</th><th>Причина</th></tr>
+    {% for r in report.rejected[:20] %}
+    <tr><td class="nowrap">{{ r.row_no }}</td><td>{{ r.error }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if report.rejected|length > 20 %}
+  <p class="small muted">…и ещё {{ report.rejected|length - 20 }}.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if report.with_notes %}
+<div class="panel">
+  <h2>Замечания</h2>
+  <p class="sub">Строки приняты, но значения пришлось истолковать. Проверьте.</p>
+  <table>
+    <tr><th>Строка</th><th>Что не так</th></tr>
+    {% for r in report.with_notes[:20] %}
+    <tr><td class="nowrap">{{ r.row_no }}</td><td>{{ r.notes|join('; ') }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if report.valid %}
+<div class="panel table-wrap">
+  <h2>Готовы к загрузке</h2>
+  <table>
+    <tr><th>Строка</th><th>Инв. №</th><th>Прибор</th><th>Тип</th><th>Зав. №</th><th>Поверка до</th></tr>
+    {% for r in report.valid[:preview_rows] %}
+    <tr>
+      <td class="nowrap small">{{ r.row_no }}</td>
+      <td class="nowrap">{{ r.data.inventory_no }}</td>
+      <td>{{ r.data.name }}</td>
+      <td class="small">{{ r.data.type_name or '—' }}</td>
+      <td class="small">{{ r.data.serial_no or '—' }}</td>
+      <td class="nowrap small">{{ r.data.verification_valid_until.strftime('%d.%m.%Y') if r.data.verification_valid_until else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if report.valid|length > preview_rows %}
+  <p class="small muted">Показаны первые {{ preview_rows }} из {{ report.valid|length }}.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <form method="post" action="/import/apply">
+    <input type="hidden" name="stored_file" value="{{ stored_file }}">
+    <button type="submit">Загрузить {{ report.valid|length }} приборов в систему</button>
+    <a class="btn ghost" href="/import">Отменить</a>
+  </form>
+  <p class="small muted" style="margin-top:10px">
+    Приборы появятся на складе. Незнакомые типы будут заведены — проверьте
+    у них межповерочный интервал: он берётся из паспорта прибора, а не угадывается.
+  </p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
