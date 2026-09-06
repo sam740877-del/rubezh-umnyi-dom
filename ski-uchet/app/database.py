@@ -14,7 +14,30 @@ DEFAULT_DB_PATH = BASE_DIR / "ski.db"
 
 DATABASE_URL = os.environ.get("SKI_DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
 
-engine = create_engine(DATABASE_URL, future=True, echo=False)
+def _engine_options() -> dict:
+    """Настройки движка. Для базы в памяти — особые.
+
+    SQLite держит базу «:memory:» ровно столько, сколько открыто
+    соединение: обычный пул выдал бы каждой сессии СВОЮ пустую базу.
+    `StaticPool` держит одно соединение на всё время, и все сессии
+    видят одни данные.
+
+    Нужно это только тестам, но живёт здесь: подключение — дело
+    `database.py`, а не тех, кто им пользуется.
+    """
+    if ":memory:" in DATABASE_URL:
+        from sqlalchemy.pool import StaticPool
+
+        return {
+            "poolclass": StaticPool,
+            # Сессии ходят из разных потоков (веб-клиент в тестах),
+            # а SQLite по умолчанию это запрещает.
+            "connect_args": {"check_same_thread": False},
+        }
+    return {}
+
+
+engine = create_engine(DATABASE_URL, future=True, echo=False, **_engine_options())
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
 
 

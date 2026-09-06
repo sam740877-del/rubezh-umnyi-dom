@@ -29,6 +29,7 @@ r"""Сторож доступа: чужого не видно, чужим не �
 
 from __future__ import annotations
 
+import os
 from urllib.parse import unquote
 
 import pytest
@@ -435,3 +436,38 @@ def test_chief_does_not_see_warehouse_buttons(users) -> None:
 
     assert "К выдаче" in warehouse, "у кладовщика пропала кнопка выдачи"
     assert "Выдать на участок" in card, "у кладовщика пропала форма выдачи"
+
+
+def test_fast_hashing_is_only_for_tests() -> None:
+    """Ослабленное хеширование включается только переменной окружения.
+
+    В тестах повторов тысяча вместо двухсот тысяч — иначе треть прогона
+    уходит в защиту от подбора, которого в тестах не бывает.
+
+    Но забытая в коде «отладочная» константа — обычный путь к тому, что
+    боевые пароли годами лежат под слабой защитой. Поэтому проверяем:
+    послабление живёт ТОЛЬКО в переменной, и без неё берётся боевое число.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    корень = Path(__file__).resolve().parent.parent
+    # Запускаем отдельным процессом БЕЗ переменной: в этом окружение
+    # её ставит conftest, и проверить иначе нельзя.
+    окружение = {
+        k: v for k, v in os.environ.items() if k != "SKI_FAST_HASH"
+    }
+    ответ = subprocess.run(
+        [sys.executable, "-c", "from app import security; print(security.HASH_ITERATIONS)"],
+        cwd=корень,
+        capture_output=True,
+        text=True,
+        env=окружение,
+    )
+
+    assert ответ.returncode == 0, f"не удалось проверить: {ответ.stderr[:200]}"
+    assert ответ.stdout.strip() == "200000", (
+        f"в бою повторов {ответ.stdout.strip()} вместо 200000 — "
+        "послабление для тестов утекло в рабочий код"
+    )
