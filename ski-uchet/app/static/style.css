@@ -191,3 +191,28 @@ header.top .whoami .logout { color: #fff; text-decoration: underline; }
 }
 .demo-hint p { margin: 8px 0 0; }
 .demo-hint .warn-line { color: #a2432c; }
+
+
+/* Значок уведомлений. Без непрочитанных выглядит как обычная ссылка —
+   постоянно горящий значок перестают замечать через неделю. */
+header.top .whoami .bell {
+  color: #cfe0f2;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+header.top .whoami .bell:hover { color: #fff; text-decoration: none; }
+header.top .whoami .bell.has-unread { color: #fff; }
+header.top .whoami .bell .count {
+  background: #d9534f;
+  color: #fff;
+  border-radius: 9px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Непрочитанная строка в ящике: слева полоса, а не заливка всей строки —
+   заливка спорит с цветными значками внутри. */
+tr.unread td { background: #fbfcfe; }
+tr.unread td:first-child { box-shadow: inset 3px 0 0 #16324f; }

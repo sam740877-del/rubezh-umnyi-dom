@@ -21,7 +21,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import attachments, security, services, session_cookie
+from app import attachments, notifications, security, services, session_cookie
 from app.database import get_session, init_db
 from app.models import (
     ATTACHMENT_KINDS,
@@ -113,7 +113,9 @@ def render(request: Request, template: str, **context) -> HTMLResponse:
     context.setdefault("msg", request.query_params.get("msg"))
     context.setdefault("err", request.query_params.get("err"))
     context.setdefault("section", current_section(request))
-    context.setdefault("user", getattr(request.state, "user", None))
+    actor = getattr(request.state, "user", None)
+    context.setdefault("user", actor)
+    context.setdefault("unread", getattr(request.state, "unread", 0))
     return templates.TemplateResponse(request, template, context)
 
 
@@ -408,6 +410,13 @@ async def login_wall(request: Request, call_next):
         return RedirectResponse(f"/login?next={path}", status_code=303)
 
     request.state.user = actor
+    # Счётчик берём той же сессией, что и пользователя: отдельный запрос
+    # на каждую страницу ради значка — плата, которую видно на списках.
+    session = SessionLocal()
+    try:
+        request.state.unread = notifications.unread_count(session, actor.id)
+    finally:
+        session.close()
     return await call_next(request)
 
 
@@ -506,6 +515,55 @@ def attachment_delete(
     except attachments.AttachmentError as exc:
         return redirect(target, err=str(exc))
     return redirect(target, msg="Документ откреплён")
+
+
+# --------------------------------------------------------------------------
+# Уведомления
+# --------------------------------------------------------------------------
+
+
+@app.get("/notifications", response_class=HTMLResponse)
+def notifications_view(
+    request: Request,
+    unread_only: str = "",
+    actor: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_session),
+):
+    """Ящик уведомлений вошедшего."""
+    return render(
+        request,
+        "notifications.html",
+        entries=notifications.for_user(db, actor.id, only_unread=bool(unread_only)),
+        filters={"unread_only": unread_only},
+    )
+
+
+@app.post("/notifications/read")
+def notifications_mark_read(
+    actor: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_session),
+):
+    """Отметить все свои уведомления прочитанными."""
+    count = notifications.mark_read(db, actor.id)
+    db.commit()
+    return redirect("/notifications", msg=f"Отмечено прочитанными: {count}")
+
+
+@app.post("/notifications/scan")
+def notifications_scan(
+    actor: CurrentUser = Depends(guard(Permission.AUDIT_VIEW)),
+    db: Session = Depends(get_session),
+):
+    """Пройти по парку и разослать напоминания о поверках.
+
+    Пока запускается кнопкой. На этапе 2 то же самое будет делать
+    расписание на сервере — механизм от этого не меняется.
+    """
+    created = notifications.scan_verifications(db)
+    db.commit()
+    if created:
+        return redirect("/notifications", msg=f"Создано уведомлений: {created}")
+    return redirect("/notifications", msg="Новых напоминаний нет — всё уже разослано")
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:

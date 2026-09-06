@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Уведомления — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Уведомления</h1>
+<p class="sub">Что система сообщила вам: поверки, заявки, возвраты.</p>
+
+<div class="panel">
+  <form class="inline" method="get" action="/notifications">
+    <div style="flex:0 1 auto"><label>Показывать</label>
+      <select name="unread_only" onchange="this.form.submit()">
+        <option value="">все</option>
+        <option value="1" {{ 'selected' if filters.unread_only }}>только непрочитанные</option>
+      </select></div>
+  </form>
+  <div class="btn-row" style="margin-top:12px">
+    <form method="post" action="/notifications/read" style="display:inline">
+      <button type="submit" class="btn ghost">Отметить все прочитанными</button>
+    </form>
+    {% if user.can('audit.view') %}
+    <form method="post" action="/notifications/scan" style="display:inline">
+      <button type="submit">Проверить сроки поверок сейчас</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Когда</th><th>О чём</th><th>Сообщение</th><th>Доставка</th></tr>
+    {% for e in entries %}
+    <tr class="{{ '' if e.is_read else 'unread' }}">
+      <td class="nowrap small">{{ e.created_at.strftime('%d.%m.%Y %H:%M') if e.created_at }}</td>
+      <td class="small nowrap">
+        {% if e.kind == 'verification_expired' %}<span class="badge bad">{{ e.kind_label }}</span>
+        {% elif e.kind == 'verification_due' %}<span class="badge warn">{{ e.kind_label }}</span>
+        {% else %}<span class="badge neutral">{{ e.kind_label }}</span>{% endif %}
+      </td>
+      <td>
+        {% if e.object_type == 'instrument' %}<a href="/instruments/{{ e.object_id }}">{{ e.text }}</a>
+        {% elif e.object_type == 'change_request' %}<a href="/requests">{{ e.text }}</a>
+        {% else %}{{ e.text }}{% endif %}
+      </td>
+      <td class="small nowrap">
+        {% if e.is_read %}<span class="muted">прочитано</span>
+        {% elif e.is_delivered %}доставлено
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">Уведомлений нет.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <p class="small muted">Напоминания о поверках получают главный инженер и руководитель
+  строительного контроля, а мастер участка — через бота в MAX, когда тот появится
+  (этап 6). Записи для бота уже копятся: он заберёт их и отметит, чем доставил.</p>
+</div>
+{% endblock %}

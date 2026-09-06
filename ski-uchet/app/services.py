@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app import audit
+from app import audit, notifications
 from app.models import (
     BLOCKED_FOR_ISSUE,
     INSTRUMENT_STATUSES,
@@ -284,6 +284,18 @@ def return_instrument(
         + (f", документ: {doc_no}" if doc_no else "")
         + (f", неисправность: {notes}" if new_status == "repair" and notes else ""),
     )
+    if new_status == "repair":
+        # Кладовщику сообщаем только о неисправных: исправный возврат —
+        # обычная операция, о которой напоминать незачем (ответ 54).
+        notifications.notify_users(
+            session,
+            ("admin", "keeper"),
+            "instrument_returned",
+            f"Возвращён неисправным: {instrument.inventory_no} {instrument.name}."
+            + (f" Что не так: {notes}" if notes else ""),
+            object_type="instrument",
+            object_id=instrument_id,
+        )
     return movement
 
 
@@ -613,6 +625,16 @@ def create_change_request(
         details=f"прибор {instrument.inventory_no} → участок «{target.name}»"
         + (f", причина: {reason}" if reason else ""),
     )
+    notifications.notify_users(
+        session,
+        ("admin", "chief"),
+        "request_new",
+        f"Заявка №{request.id} на согласование: {instrument.inventory_no} "
+        f"{instrument.name} → участок «{target.name}». Подал: {requested_by.strip()}."
+        + (f" Причина: {reason}" if reason else ""),
+        object_type="change_request",
+        object_id=request.id,
+    )
     return request
 
 
@@ -669,6 +691,17 @@ def approve_change_request(
         details=f"перемещение исполнено: прибор №{request.instrument_id}"
         + (f", комментарий: {comment}" if comment else ""),
     )
+    notifications.notify_site(
+        session,
+        request.to_site_id,
+        "request_decided",
+        f"Заявка №{request.id} согласована: прибор "
+        f"{request.instrument.inventory_no} {request.instrument.name} "
+        f"перемещён на ваш участок."
+        + (f" Комментарий: {comment}" if comment else ""),
+        object_type="change_request",
+        object_id=request.id,
+    )
     return request
 
 
@@ -705,6 +738,17 @@ def reject_change_request(
         object_id=request.id,
         details=f"причина отказа: {comment.strip()}",
     )
+    # Отказ уходит на участок, ОТКУДА подавали: мастер ждёт ответа там,
+    # где прибор у него и стоит.
+    if request.from_site_id:
+        notifications.notify_site(
+            session,
+            request.from_site_id,
+            "request_decided",
+            f"Заявка №{request.id} отклонена. Причина: {comment.strip()}",
+            object_type="change_request",
+            object_id=request.id,
+        )
     return request
 
 

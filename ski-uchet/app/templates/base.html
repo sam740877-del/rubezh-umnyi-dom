@@ -35,6 +35,11 @@
   {# Подпись вошедшего и выход — у правого края. «Выйти» рядом с разделами
      ловило бы случайные нажатия. #}
   <div class="whoami">
+    {# Значок непрочитанных стоит рядом с именем, а не в ряду разделов:
+       это не место, куда ходят, а сигнал, что тебя ждёт сообщение. #}
+    <a href="/notifications" class="bell {{ 'has-unread' if unread }}">
+      Уведомления{% if unread %} <span class="count">{{ unread }}</span>{% endif %}
+    </a>
     <span title="{{ user.login }}">{{ user.title }}</span>
     <a href="/logout" class="logout">Выйти</a>
   </div>

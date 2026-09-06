@@ -553,3 +553,83 @@ class Attachment(Base):
         if size < 1024 * 1024:
             return f"{size / 1024:.0f} КБ"
         return f"{size / 1024 / 1024:.1f} МБ"
+
+
+#: Вид уведомления. Текст готовится при создании — доставщик не сочиняет.
+NOTIFICATION_KINDS = {
+    "verification_due": "Поверка заканчивается",
+    "verification_expired": "Поверка просрочена",
+    "request_new": "Новая заявка на согласование",
+    "request_decided": "Решение по заявке",
+    "instrument_returned": "Прибор возвращён на склад",
+}
+
+#: Чем уведомление доставлено. Пустое — ещё не доставлено никем.
+DELIVERY_CHANNELS = {
+    "web": "Показано на сайте",
+    "bot": "Отправлено в MAX",
+}
+
+
+class Notification(Base):
+    r"""Ящик уведомлений: событие рождает запись на каждого адресата.
+
+    Устройство взято у «Заявок» (`C:\zayavki\core
+otify_outbox.py`)
+    вместе с главной мыслью: **ядро не знает о транспорте**. Сайт показывает
+    непрочитанные при входе, бот в MAX (этап 6) заберёт те же записи и
+    отметит, чем доставил.
+
+    Довод владельца, записанный у донора: уведомления нужны «как факт, что
+    специалист был уведомлён системой. Прямая отправка такого факта не
+    оставляет — доказать, что человек был предупреждён, нечем».
+
+    Три состояния, и они разные: **создано** (запись есть), **доставлено**
+    (`delivered_via` заполнено), **прочитано** (`read_at` заполнено).
+    Доставка не равна прочтению: сообщение ушло в мессенджер — не значит,
+    что человек его открыл.
+
+    Адресат может быть двух родов: пользователь сайта (`recipient_id`)
+    или мастер участка, у которого учётной записи нет вовсе — его
+    опознаёт бот, а здесь он записан участком (`site_id`). Второй род
+    появится на этапе 6, но поле заводим сразу: пристроить его к полному
+    ящику дороже, чем заложить.
+    """
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        CheckConstraint("kind IN " + _sql_list(NOTIFICATION_KINDS), name="ck_notification_kind"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    #: Кому на сайте. Пусто — значит, адресат за пределами сайта (мастер в боте).
+    recipient_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    #: Участок, чьему мастеру адресовано. Для получателей без учётной записи.
+    site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"))
+    #: О чём речь. Пара как в журнале действий, а не колонка на каждый вид.
+    object_type: Mapped[str | None] = mapped_column(String(20))
+    object_id: Mapped[int | None] = mapped_column(Integer)
+    #: Готовый текст. Доставщик его не сочиняет и не дополняет.
+    text: Mapped[str] = mapped_column(Text)
+    delivered_via: Mapped[str | None] = mapped_column(String(10))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    recipient: Mapped[User | None] = relationship()
+    site: Mapped[Site | None] = relationship()
+
+    @property
+    def kind_label(self) -> str:
+        return NOTIFICATION_KINDS.get(self.kind, self.kind)
+
+    @property
+    def is_read(self) -> bool:
+        return self.read_at is not None
+
+    @property
+    def is_delivered(self) -> bool:
+        return self.delivered_via is not None

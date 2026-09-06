@@ -52,6 +52,7 @@ CORE_MODULES = (
     "audit.py",
     "security.py",
     "attachments.py",
+    "notifications.py",
 )
 
 #: Пакеты интерфейса. Слой логики не имеет права о них знать.
