@@ -122,3 +122,40 @@ button.danger, .btn.danger { background: #fff; color: var(--bad); border-color: 
 .right { text-align: right; }
 .nowrap { white-space: nowrap; }
 details.form-block summary { cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 10px; }
+
+
+/* Подпись вошедшего прижата вправо: имя и роль всегда на виду, чтобы
+   человек не гадал, под кем работает. */
+/* Название и подпись вошедшего — одна строка на всю ширину шапки.
+   Раньше подпись стояла после навигации с `margin-left:auto`, но при
+   переносе разделов на вторую строку она падала вниз отдельной строкой:
+   прижимать вправо было уже нечем. */
+header.top .brandline {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+header.top .whoami {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #cfe0f2;
+  white-space: nowrap;
+}
+header.top .whoami .logout { color: #fff; text-decoration: underline; }
+
+/* Окно входа: узкая колонка по центру, без навигации вокруг. */
+.auth-box {
+  max-width: 380px;
+  margin: 40px auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 26px 28px 30px;
+}
+.auth-box h1 { margin-top: 0; }
+.auth-box label { display: block; margin-top: 12px; }
+.auth-box input { width: 100%; }

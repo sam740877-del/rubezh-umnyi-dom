@@ -8,10 +8,20 @@
 </head>
 <body>
 <header class="top">
-  <span class="brand">Учёт СКИ</span>
+  <div class="brandline">
+    <span class="brand">Учёт СКИ</span>
+    {% if user %}
+    <div class="whoami">
+      <span title="{{ user.login }}">{{ user.title }}</span>
+      <a href="/logout" class="logout">Выйти</a>
+    </div>
+    {% endif %}
+  </div>
   <nav>
     {# Подсветка открытого раздела: `section` считает render() по первому
-       куску пути, поэтому карточка прибора подсвечивает «Приборы». #}
+       куску пути, поэтому карточка прибора подсвечивает «Приборы».
+       Скрытый раздел не есть запрет: право проверяется и на маршруте —
+       здесь мы лишь не показываем то, чем человек не воспользуется. #}
     <a href="/" class="{{ 'active' if section == 'dashboard' }}">Сводка</a>
     <a href="/warehouse" class="{{ 'active' if section == 'warehouse' }}">Склад</a>
     <a href="/instruments" class="{{ 'active' if section == 'instruments' }}">Приборы</a>
@@ -21,8 +31,13 @@
     <a href="/contracts" class="{{ 'active' if section == 'contracts' }}">Договоры</a>
     <a href="/verifications" class="{{ 'active' if section == 'verifications' }}">Поверки</a>
     <a href="/movements" class="{{ 'active' if section == 'movements' }}">Журнал движения</a>
+    {% if not user or user.can('audit.view') %}
     <a href="/audit" class="{{ 'active' if section == 'audit' }}">Журнал действий</a>
+    {% endif %}
     <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
+    {% if user and user.can('user.manage') %}
+    <a href="/users" class="{{ 'active' if section == 'users' }}">Пользователи</a>
+    {% endif %}
   </nav>
 </header>
 <main>

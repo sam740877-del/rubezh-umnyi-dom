@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Учётные записи — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Учётные записи</h1>
+<p class="sub">Кто работает на сайте. Инженерам СК записи не нужны — они работают через бота.</p>
+
+<div class="panel">
+  <h2>Завести запись</h2>
+  <form class="inline" method="post" action="/users/create">
+    <div style="flex:1 1 140px"><label>Логин</label><input name="login" required></div>
+    <div style="flex:1 1 180px"><label>Имя и фамилия</label><input name="display_name"></div>
+    <div style="flex:1 1 160px"><label>Роль</label>
+      <select name="role">
+        {% for key, title in roles.items() %}<option value="{{ key }}">{{ title }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 180px"><label>Почта</label><input name="email" type="email"></div>
+    <div style="flex:1 1 160px"><label>Пароль (от 8 знаков)</label>
+      <input name="password" type="password" required></div>
+    <button type="submit">Завести</button>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Состояние</th><th>Последний вход</th><th>Действия</th></tr>
+    {% for u in users %}
+    <tr>
+      <td class="nowrap">{{ u.login }}</td>
+      <td>{{ u.display_name or '—' }}</td>
+      <td>
+        <form method="post" action="/users/{{ u.id }}/role" class="inline" style="gap:6px">
+          <select name="role" onchange="this.form.submit()">
+            {% for key, title in roles.items() %}
+            <option value="{{ key }}" {{ 'selected' if u.role == key }}>{{ title }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </td>
+      <td>
+        {% if u.is_active %}<span class="badge ok">действует</span>
+        {% else %}<span class="badge neutral">отключена</span>{% endif %}
+      </td>
+      <td class="nowrap">{{ u.last_login_at.strftime('%d.%m.%Y %H:%M') if u.last_login_at else '—' }}</td>
+      <td class="nowrap">
+        <form method="post" action="/users/{{ u.id }}/active" style="display:inline">
+          <input type="hidden" name="active" value="{{ '0' if u.is_active else '1' }}">
+          <button type="submit" class="btn ghost">{{ 'Отключить' if u.is_active else 'Включить' }}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Права ролей</h2>
+  <p class="sub">Единственное место, где роль превращается в набор действий —
+  в коде это <code>ROLE_PERMISSIONS</code>.</p>
+  <ul>
+    <li><b>Администратор</b> — может всё, включая учётные записи и справочники.</li>
+    <li><b>Кладовщик</b> — выдаёт и принимает приборы, ведёт карточки и поверки.
+      Заявки не решает: их согласует главный инженер.</li>
+    <li><b>Главный инженер</b> — согласует заявки на перемещение, ведёт договоры,
+      видит журнал действий. Склад не ведёт: выдачу оформляет материально
+      ответственное лицо.</li>
+  </ul>
+</div>
+{% endblock %}

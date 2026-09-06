@@ -4,6 +4,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
+from app import security
 from app.database import SessionLocal
 from app.main import app
 from app.seed import seed_demo
@@ -11,7 +12,44 @@ from app.seed import seed_demo
 
 @pytest.fixture()
 def client(session):
+    """Клиент, вошедший администратором.
+
+    Без входа система теперь никуда не пускает — это и есть смысл заставы.
+    Вход делается настоящим: через страницу `/login`, а не подкладыванием
+    печенья, чтобы дымовые тесты заодно стерегли саму процедуру входа.
+    """
     seed_demo(session)
+    security.create_user(
+        session,
+        "tester",
+        "test-password",
+        security.Role.ADMIN,
+        display_name="Тестовый администратор",
+        require_permission=False,
+    )
+    session.commit()
+
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/login",
+            data={"login": "tester", "password": "test-password"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303, "вход не удался — дальше проверять нечего"
+        yield test_client
+
+
+@pytest.fixture()
+def anon_client(session):
+    """Клиент без входа — для проверки самой заставы."""
+    seed_demo(session)
+    security.create_user(
+        session,
+        "tester",
+        "test-password",
+        security.Role.ADMIN,
+        require_permission=False,
+    )
     session.commit()
     with TestClient(app) as test_client:
         yield test_client

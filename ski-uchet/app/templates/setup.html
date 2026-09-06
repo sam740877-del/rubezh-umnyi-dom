@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Первый запуск — Учёт СКИ{% endblock %}
+{% block content %}
+<div class="auth-box">
+  <h1>Первый запуск</h1>
+  <p class="sub">В системе ещё нет ни одной учётной записи. Заведите администратора —
+  дальше он заведёт остальных.</p>
+
+  <form method="post" action="/setup">
+    <label>Логин</label>
+    <input name="login" autofocus autocomplete="username" required placeholder="admin">
+    <label>Имя и фамилия</label>
+    <input name="display_name" placeholder="Иванов Иван">
+    <label>Пароль (не короче 8 знаков)</label>
+    <input type="password" name="password" autocomplete="new-password" required>
+    <label>Повторите пароль</label>
+    <input type="password" name="password2" autocomplete="new-password" required>
+    <button type="submit" style="width:100%; margin-top:14px">Завести администратора</button>
+  </form>
+
+  <p class="muted" style="margin-top:16px; font-size:13px">
+    Пароль по умолчанию не предлагается намеренно: подсказанный логин с пустым
+    паролем — это инструкция для постороннего, а не помощь своему.
+  </p>
+</div>
+{% endblock %}

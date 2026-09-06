@@ -8,7 +8,7 @@ from pathlib import Path
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -16,10 +16,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import services
+from app import security, services, session_cookie
 from app.database import get_session, init_db
 from app.models import (
     AUDIT_TYPES,
+    USER_ROLES,
+    User,
     AuditLog,
     CATEGORIES,
     REQUEST_STATUSES,
@@ -39,6 +41,7 @@ from app.models import (
     Movement,
     Site,
 )
+from app.security import AccessDenied, CurrentUser, Permission, SecurityError
 from app.services import BusinessError
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -103,6 +106,7 @@ def render(request: Request, template: str, **context) -> HTMLResponse:
     context.setdefault("msg", request.query_params.get("msg"))
     context.setdefault("err", request.query_params.get("err"))
     context.setdefault("section", current_section(request))
+    context.setdefault("user", getattr(request.state, "user", None))
     return templates.TemplateResponse(request, template, context)
 
 
@@ -116,6 +120,284 @@ def current_section(request: Request) -> str:
     """
     first = request.url.path.strip("/").split("/")[0]
     return first or "dashboard"
+
+
+# --------------------------------------------------------------------------
+# Вход и права
+# --------------------------------------------------------------------------
+
+#: Куда пускают без входа: сама страница входа, выход, статика и первичная
+#: настройка. Список закрытый — всё остальное требует входа.
+PUBLIC_PATHS = {"/login", "/logout", "/setup"}
+
+
+def optional_user(request: Request, db: Session) -> CurrentUser | None:
+    """Кто сейчас работает, или None.
+
+    Роль читается из базы каждый раз, а не берётся из печенья: иначе
+    администратор, отключивший человека или понизивший роль, ждал бы
+    истечения чужого сеанса.
+    """
+    user_id = session_cookie.read(request.cookies.get(session_cookie.COOKIE_NAME))
+    if user_id is None:
+        return None
+    found = db.get(User, user_id)
+    if found is None or not found.is_active:
+        return None
+    return security.snapshot(found)
+
+
+def require_user(request: Request, db: Session = Depends(get_session)) -> CurrentUser:
+    """Требовать вошедшего. Без него — на страницу входа."""
+    found = optional_user(request, db)
+    if found is None:
+        raise HTTPException(status_code=401, detail="Требуется вход")
+    return found
+
+
+def guard(permission: Permission):
+    """Зависимость-застава: требует конкретное право.
+
+    Проверка стоит на маршруте, а не только в шаблоне: спрятанная кнопка
+    не есть право — форму можно отправить и мимо экрана (урок Б-1 «Заявок»).
+    """
+
+    def check(actor: CurrentUser = Depends(require_user)) -> CurrentUser:
+        security.require(actor, permission)
+        return actor
+
+    return check
+
+
+def _needs_setup() -> bool:
+    """Нужен ли первичный запуск — когда учётных записей ещё нет."""
+    from app.database import SessionLocal
+
+    session = SessionLocal()
+    try:
+        return security.is_first_run(session)
+    finally:
+        session.close()
+
+
+def _set_session_cookie(response, user_id: int) -> None:
+    """Положить печенье сеанса.
+
+    `httponly` — чтобы его не достал скрипт на странице; `samesite=lax` —
+    чтобы чужой сайт не отправил форму от имени вошедшего. `secure` не
+    ставим: система живёт по http внутри локальной сети конторы, и с этим
+    флагом печенье просто не сохранилось бы.
+    """
+    response.set_cookie(
+        session_cookie.COOKIE_NAME,
+        session_cookie.issue(user_id),
+        max_age=session_cookie.MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+@app.get("/setup", response_class=HTMLResponse)
+def setup_form(request: Request, db: Session = Depends(get_session)):
+    """Первичная настройка: завести первого администратора."""
+    if not security.is_first_run(db):
+        return RedirectResponse("/login", status_code=303)
+    return render(request, "setup.html")
+
+
+@app.post("/setup")
+def setup_submit(
+    login: str = Form(...),
+    display_name: str = Form(""),
+    password: str = Form(...),
+    password2: str = Form(""),
+    db: Session = Depends(get_session),
+):
+    """Завести первого администратора. Работает только на пустой базе."""
+    if not security.is_first_run(db):
+        return RedirectResponse("/login", status_code=303)
+    try:
+        security.validate_password(password, password2)
+        created = security.create_user(
+            db,
+            login,
+            password,
+            security.Role.ADMIN,
+            display_name=display_name,
+            require_permission=False,
+        )
+        db.commit()
+    except SecurityError as exc:
+        return RedirectResponse(f"/setup?err={exc}", status_code=303)
+
+    response = RedirectResponse("/?msg=Добро пожаловать", status_code=303)
+    _set_session_cookie(response, created.id)
+    return response
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request, next: str = "/", db: Session = Depends(get_session)):
+    """Страница входа."""
+    if security.is_first_run(db):
+        return RedirectResponse("/setup", status_code=303)
+    return render(request, "login.html", next=next)
+
+
+@app.post("/login")
+def login_submit(
+    login: str = Form(...),
+    password: str = Form(...),
+    next: str = Form("/"),
+    db: Session = Depends(get_session),
+):
+    """Проверить логин и пароль."""
+    try:
+        found = security.authenticate(db, login, password)
+        db.commit()
+    except SecurityError as exc:
+        db.commit()  # неудачная попытка тоже записана в журнал
+        return RedirectResponse(f"/login?err={exc}", status_code=303)
+
+    # Возвращаем только на свои страницы: чужой адрес в next превратил бы
+    # вход в переадресацию на любой сайт по ссылке из письма.
+    target = next if next.startswith("/") and not next.startswith("//") else "/"
+    response = RedirectResponse(target, status_code=303)
+    _set_session_cookie(response, found.id)
+    return response
+
+
+@app.get("/logout")
+def logout():
+    """Выйти из системы."""
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(session_cookie.COOKIE_NAME)
+    return response
+
+
+@app.get("/users", response_class=HTMLResponse)
+def users_list(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Учётные записи. Виден только администратору."""
+    return render(request, "users.html", users=security.list_users(db), roles=USER_ROLES)
+
+
+@app.post("/users/create")
+def users_create(
+    login: str = Form(...),
+    password: str = Form(...),
+    role: str = Form("keeper"),
+    display_name: str = Form(""),
+    email: str = Form(""),
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Завести учётную запись."""
+    try:
+        security.create_user(
+            db, login, password, role, display_name=display_name, email=email, actor=actor
+        )
+        db.commit()
+    except SecurityError as exc:
+        return RedirectResponse(f"/users?err={exc}", status_code=303)
+    return RedirectResponse("/users?msg=Учётная запись заведена", status_code=303)
+
+
+@app.post("/users/{user_id}/active")
+def users_set_active(
+    user_id: int,
+    active: str = Form("1"),
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Включить или отключить учётную запись."""
+    try:
+        security.set_active(db, user_id, active == "1", actor=actor)
+        db.commit()
+    except SecurityError as exc:
+        return RedirectResponse(f"/users?err={exc}", status_code=303)
+    return RedirectResponse("/users?msg=Готово", status_code=303)
+
+
+@app.post("/users/{user_id}/role")
+def users_change_role(
+    user_id: int,
+    role: str = Form(...),
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Сменить роль."""
+    try:
+        security.change_role(db, user_id, role, actor=actor)
+        db.commit()
+    except SecurityError as exc:
+        return RedirectResponse(f"/users?err={exc}", status_code=303)
+    return RedirectResponse("/users?msg=Роль изменена", status_code=303)
+
+
+@app.post("/users/{user_id}/password")
+def users_set_password(
+    user_id: int,
+    password: str = Form(...),
+    password2: str = Form(""),
+    actor: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_session),
+):
+    """Задать пароль: свой — любой, чужой — только администратор."""
+    try:
+        security.set_password(db, user_id, password, confirmation=password2, actor=actor)
+        db.commit()
+    except SecurityError as exc:
+        return RedirectResponse(f"/users?err={exc}", status_code=303)
+    return RedirectResponse("/users?msg=Пароль изменён", status_code=303)
+
+
+@app.middleware("http")
+async def login_wall(request: Request, call_next):
+    """Пускать в систему только вошедших.
+
+    Застава общая, а не на каждом маршруте: забыть повесить её на новый
+    экран куда легче, чем вписать путь в PUBLIC_PATHS. Урок Б-1 «Заявок»
+    ровно об этом — любой путь мимо заставы открывает дыру молча.
+
+    Заодно кладёт снимок пользователя в `request.state`, чтобы каждый
+    шаблон знал, кто работает, без лишнего запроса.
+    """
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/static"):
+        return await call_next(request)
+
+    from app.database import SessionLocal
+
+    session = SessionLocal()
+    try:
+        actor = optional_user(request, session)
+    finally:
+        session.close()
+
+    if actor is None:
+        if _needs_setup():
+            return RedirectResponse("/setup", status_code=303)
+        return RedirectResponse(f"/login?next={path}", status_code=303)
+
+    request.state.user = actor
+    return await call_next(request)
+
+
+@app.exception_handler(AccessDenied)
+async def access_denied_handler(request: Request, exc: AccessDenied):
+    """Не хватает прав — говорим по-человечески, а не пятисотой ошибкой."""
+    return RedirectResponse(f"/?err={exc}", status_code=303)
+
+
+@app.exception_handler(HTTPException)
+async def unauthorized_handler(request: Request, exc: HTTPException):
+    """401 от require_user превращаем в переход на страницу входа."""
+    if exc.status_code == 401:
+        return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+    raise exc
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:
@@ -244,6 +526,7 @@ def instrument_create(
     price: str = Form(""),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
 ):
     instrument = Instrument(
         inventory_no=inventory_no.strip(),
@@ -296,6 +579,7 @@ def instrument_edit(
     price: str = Form(""),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
 ):
     instrument = db.get(Instrument, instrument_id)
     if instrument is None:
@@ -335,6 +619,7 @@ def instrument_issue(
     notes: str = Form(""),
     ignore_verification: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_ISSUE)),
 ):
     try:
         services.issue_instrument(
@@ -363,6 +648,7 @@ def instrument_return(
     notes: str = Form(""),
     new_status: str = Form("warehouse"),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_RETURN)),
 ):
     try:
         services.return_instrument(
@@ -393,6 +679,7 @@ def instrument_add_verification(
     cost: str = Form(""),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.VERIFICATION_ADD)),
 ):
     try:
         services.add_verification(
@@ -437,6 +724,7 @@ def contract_create(
     status: str = Form("active"),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.CONTRACT_EDIT)),
 ):
     contract = Contract(
         number=number.strip(),
@@ -486,6 +774,7 @@ def site_create(
     annex_date: str = Form(""),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.SITE_EDIT)),
 ):
     site = Site(
         name=name.strip(),
@@ -534,6 +823,7 @@ def site_kit_add(
     required_qty: int = Form(1),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
 ):
     existing = db.scalar(
         select(KitItem).where(KitItem.site_id == site_id, KitItem.type_id == type_id)
@@ -552,7 +842,12 @@ def site_kit_add(
 
 
 @app.post("/sites/{site_id}/kit/{item_id}/delete")
-def site_kit_delete(site_id: int, item_id: int, db: Session = Depends(get_session)):
+def site_kit_delete(
+    site_id: int,
+    item_id: int,
+    db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
+):
     item = db.get(KitItem, item_id)
     if item and item.site_id == site_id:
         db.delete(item)
@@ -569,6 +864,7 @@ def site_issue(
     doc_no: str = Form(""),
     ignore_verification: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_ISSUE)),
 ):
     try:
         services.issue_instrument(
@@ -610,6 +906,7 @@ def type_create(
     verification_interval_months: int = Form(12),
     notes: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.CATALOG_EDIT)),
 ):
     db.add(
         InstrumentType(
@@ -664,15 +961,20 @@ def movements_view(
 def audit_view(
     request: Request,
     audit_type: str = "",
-    actor: str = "",
+    who: str = "",
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.AUDIT_VIEW)),
 ):
-    """Журнал действий: кто и что делал в системе."""
+    """Журнал действий: кто и что делал в системе.
+
+    Виден администратору и главному инженеру. Кладовщику журнал не нужен:
+    он в нём действующее лицо, а не проверяющий.
+    """
     query = select(AuditLog)
     if audit_type:
         query = query.where(AuditLog.audit_type == audit_type)
-    if actor.strip():
-        query = query.where(AuditLog.actor.icontains(actor.strip()))
+    if who.strip():
+        query = query.where(AuditLog.actor.icontains(who.strip()))
     entries = db.scalars(
         query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(500)
     ).all()
@@ -681,7 +983,7 @@ def audit_view(
         "audit.html",
         entries=entries,
         audit_types=AUDIT_TYPES,
-        filters={"audit_type": audit_type, "actor": actor},
+        filters={"audit_type": audit_type, "who": who},
     )
 
 
@@ -790,7 +1092,8 @@ def templates_list(request: Request, db: Session = Depends(get_session)):
 
 @app.post("/templates/new")
 def template_create(
-    name: str = Form(...), notes: str = Form(""), db: Session = Depends(get_session)
+    name: str = Form(...), notes: str = Form(""), db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
 ):
     db.add(KitTemplate(name=name.strip(), notes=notes.strip() or None))
     try:
@@ -807,6 +1110,7 @@ def template_add_item(
     type_id: int = Form(...),
     required_qty: int = Form(1),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
 ):
     existing = db.scalar(
         select(KitTemplateItem).where(
@@ -825,7 +1129,8 @@ def template_add_item(
 
 @app.post("/sites/{site_id}/apply-template")
 def site_apply_template(
-    site_id: int, template_id: int = Form(...), db: Session = Depends(get_session)
+    site_id: int, template_id: int = Form(...), db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.KIT_EDIT)),
 ):
     try:
         changed = services.apply_kit_template(db, site_id, template_id)
@@ -897,6 +1202,7 @@ def request_approve(
     comment: str = Form(""),
     ignore_verification: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.REQUEST_DECIDE)),
 ):
     try:
         services.approve_change_request(
@@ -919,6 +1225,7 @@ def request_reject(
     decided_by: str = Form(...),
     comment: str = Form(""),
     db: Session = Depends(get_session),
+    actor: CurrentUser = Depends(guard(Permission.REQUEST_DECIDE)),
 ):
     try:
         services.reject_change_request(db, request_id, decided_by, comment)

@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -421,3 +422,43 @@ class AuditLog(Base):
     object_type: Mapped[str | None] = mapped_column(String(40), index=True)
     object_id: Mapped[int | None] = mapped_column(Integer, index=True)
     details: Mapped[str | None] = mapped_column(Text)
+
+
+#: Роли на сайте. Мастера участков работают через бота в MAX, учётных
+#: записей здесь у них нет (ответ заказчика на вопрос 49).
+USER_ROLES = {
+    "admin": "Администратор",
+    "keeper": "Кладовщик",
+    "chief": "Главный инженер",
+}
+
+
+class User(Base):
+    r"""Учётная запись сотрудника конторы.
+
+    Устройство взято у «Заявок» (`C:\zayavki\db\models.py`) вместе с двумя
+    правилами: пользователей **отключают, а не удаляют** (иначе стирается
+    учёт по людям — идентификатор человека это вся история его действий),
+    и пароль хранится строкой с именем схемы впереди, чтобы смена алгоритма
+    не обесценила разом все пароли.
+    """
+
+    __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("role IN " + _sql_list(USER_ROLES), name="ck_user_role"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    login: Mapped[str] = mapped_column(String(64), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(16), default="keeper")
+    display_name: Mapped[str | None] = mapped_column(String(160))
+    email: Mapped[str | None] = mapped_column(String(160))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    @property
+    def role_label(self) -> str:
+        return USER_ROLES.get(self.role, self.role)

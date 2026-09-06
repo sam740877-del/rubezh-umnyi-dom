@@ -44,7 +44,14 @@ APP = Path(__file__).resolve().parent.parent / "app"
 
 #: Слой логики: эти модули переживут смену интерфейса и переедут в Qt
 #: как есть. Всё, что решает «можно или нельзя», живёт здесь.
-CORE_MODULES = ("models.py", "services.py", "database.py", "seed.py", "audit.py")
+CORE_MODULES = (
+    "models.py",
+    "services.py",
+    "database.py",
+    "seed.py",
+    "audit.py",
+    "security.py",
+)
 
 #: Пакеты интерфейса. Слой логики не имеет права о них знать.
 #: Список открытый: добавится Qt — добавится и сюда, чтобы правило
@@ -106,7 +113,10 @@ def test_core_modules_are_covered() -> None:
     Без этой проверки правило тихо перестаёт работать: кто-то заводит
     `app/rules.py`, сторож о нём не знает и остаётся зелёным навсегда.
     """
-    known = set(CORE_MODULES) | {"main.py", "__init__.py"}
+    # session_cookie.py — механизм веба (печенье сеанса), при переезде на Qt
+    # он выбрасывается вместе с main.py, поэтому стоит рядом с ним, а не
+    # в слое логики.
+    known = set(CORE_MODULES) | {"main.py", "session_cookie.py", "__init__.py"}
     found = {p.name for p in APP.glob("*.py")}
     unknown = sorted(found - known)
 

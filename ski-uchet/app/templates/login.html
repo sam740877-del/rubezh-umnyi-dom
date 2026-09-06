@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Вход — Учёт СКИ{% endblock %}
+{% block content %}
+<div class="auth-box">
+  <h1>Вход в систему</h1>
+  <p class="sub">Учёт средств контроля и измерений.</p>
+
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>Логин</label>
+    <input name="login" autofocus autocomplete="username" required>
+    <label>Пароль</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+    <button type="submit" style="width:100%; margin-top:14px">Войти</button>
+  </form>
+
+  <p class="muted" style="margin-top:16px; font-size:13px">
+    Логин и пароль выдаёт администратор. Инженерам строительного контроля
+    учётная запись здесь не нужна — они работают через бота.
+  </p>
+</div>
+{% endblock %}
