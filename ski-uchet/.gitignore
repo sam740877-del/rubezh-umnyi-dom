@@ -9,3 +9,5 @@ exports/
 storage/
 backups/
 uploads/
+.secret_key
+logs/

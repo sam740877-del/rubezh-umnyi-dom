@@ -336,3 +336,33 @@ def test_demo_hint_disappears_after_password_change(users) -> None:
     assert "Демонстрационный режим" not in response.text, (
         "подсказка с паролями осталась после их смены"
     )
+
+
+def test_secret_key_is_not_in_the_repository() -> None:
+    """Ключ подписи сеансов не хранится в репозитории.
+
+    Зная его, любой подделает себе печенье администратора — вход по
+    паролю станет необязательным. Файл однажды туда уже попал, поэтому
+    правило получило сторожа, а не только строку в .gitignore.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    tracked = subprocess.run(
+        ["git", "ls-files"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.splitlines()
+
+    forbidden = [
+        name
+        for name in tracked
+        if Path(name).name in (".secret_key", ".env")
+        or name.startswith("logs/")
+        or name.startswith("storage/")
+        or name.startswith("backups/")
+    ]
+    assert not forbidden, f"в репозитории лежит то, чему там не место: {forbidden}"
