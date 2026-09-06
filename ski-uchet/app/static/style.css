@@ -36,13 +36,18 @@ header.top nav {
   display: flex;
   gap: 3px;
   /* Разделы не переносятся, а прокручиваются: на узком экране лучше
-     проскроллить полосу, чем отдать ей половину высоты окна. */
+     проскроллить полосу, чем отдать ей половину высоты окна.
+
+     Сама полоса прокрутки СКРЫТА. Она рисовалась всегда — и на широком
+     экране, где всё помещается, тоже: серая черта во всю ширину под
+     тёмной шапкой, которая ничего не прокручивает и только мозолит глаз.
+     Прокрутка при этом работает: колесом, пальцем, стрелками. */
   flex: 1 1 auto;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-header.top nav::-webkit-scrollbar { height: 4px; }
-header.top nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 2px; }
+header.top nav::-webkit-scrollbar { display: none; }
 header.top nav a {
   color: #cfe0f2;
   padding: 4px 9px;
@@ -216,3 +221,65 @@ header.top .whoami .bell .count {
    заливка спорит с цветными значками внутри. */
 tr.unread td { background: #fbfcfe; }
 tr.unread td:first-child { box-shadow: inset 3px 0 0 #16324f; }
+
+/* --------------------------------------------------------------------------
+   Выпадающие списки в шапке
+
+   Тринадцать разделов в ряд не помещались даже на широком экране и
+   требовали прокрутки, а искать среди них нужное приходилось глазами.
+   Наверху осталось то, куда ходят каждый день; редкое убрано в списки.
+
+   Раскрытие по наведению, без скриптов: список нужен на долю секунды,
+   и заставлять человека нажимать дважды (открыть, потом выбрать) — лишний
+   шаг в самом частом действии.
+   -------------------------------------------------------------------------- */
+
+header.top nav .menu { position: relative; }
+
+header.top nav .menu > button {
+  /* Кнопка списка выглядит ровно как обычный раздел: разница только
+     в стрелке. Иначе глаз спотыкается о два разных вида одного ряда. */
+  background: transparent;
+  border: 0;
+  color: #cfe0f2;
+  font: inherit;
+  padding: 4px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+header.top nav .menu > button::after {
+  content: " ▾";
+  opacity: .6;
+}
+header.top nav .menu:hover > button { color: #fff; background: rgba(255, 255, 255, .10); }
+header.top nav .menu.active > button { color: #16324f; background: #fff; font-weight: 600; }
+
+header.top nav .menu .drop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 210px;
+  padding: 6px;
+  background: #16324f;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+}
+header.top nav .menu:hover .drop { display: block; }
+
+header.top nav .menu .drop a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 5px;
+  color: #cfe0f2;
+  white-space: nowrap;
+}
+header.top nav .menu .drop a:hover {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  text-decoration: none;
+}
