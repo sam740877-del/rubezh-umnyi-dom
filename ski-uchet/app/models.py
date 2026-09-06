@@ -462,3 +462,94 @@ class User(Base):
     @property
     def role_label(self) -> str:
         return USER_ROLES.get(self.role, self.role)
+
+
+#: Назначение вложения — к чему оно приложено.
+ATTACHMENT_TARGETS = {
+    "instrument": "Прибор",
+    "verification": "Поверка",
+    "movement": "Акт выдачи или возврата",
+    "site": "Участок",
+}
+
+#: Род документа. Список из ответа заказчика на вопрос 38: свидетельства
+#: и протоколы, паспорта приборов, сертификаты калибровки, акты и накладные.
+#: Руководства по эксплуатации и договоры не храним — так решил заказчик.
+ATTACHMENT_KINDS = {
+    "certificate": "Свидетельство о поверке",
+    "protocol": "Протокол поверки",
+    "passport": "Паспорт прибора",
+    "calibration": "Сертификат калибровки",
+    "act": "Акт приёма-передачи",
+    "invoice": "Накладная",
+    "photo": "Фотография",
+    "other": "Прочее",
+}
+
+#: Откуда файл пришёл. Разделение из ответа на вопрос 56: акты с подписью
+#: и фото повреждений грузятся из бота, свидетельства и паспорта — в офисе
+#: через сайт. Знать источник нужно при разборе: снимок с телефона и
+#: сканированное свидетельство — разного качества доказательства.
+ATTACHMENT_SOURCES = {
+    "web": "Сайт",
+    "bot": "Бот в MAX",
+}
+
+
+class Attachment(Base):
+    r"""Файл, приложенный к прибору, поверке, акту или участку.
+
+    Устройство взято у «Электро» (`C:\myproject\core\doc_filing.py`)
+    вместе с главным уроком: **путь хранится относительно корня хранилища,
+    а не абсолютным**. Слова донора о том, почему: «смена папки документов,
+    переезд программы на другую машину или переименование сетевого диска
+    с `Z:` на `Y:` разом превращают все записи в ложь... человек узнаёт
+    о беде в тот момент, когда бумага понадобилась проверяющему».
+
+    Связь с объектом — парой `target_type` + `target_id`, как в журнале
+    действий, а не отдельной колонкой на каждый вид: иначе добавление
+    вложений к новой сущности означало бы миграцию схемы.
+    """
+
+    __tablename__ = "attachments"
+    __table_args__ = (
+        CheckConstraint(
+            "target_type IN " + _sql_list(ATTACHMENT_TARGETS), name="ck_attachment_target"
+        ),
+        CheckConstraint("kind IN " + _sql_list(ATTACHMENT_KINDS), name="ck_attachment_kind"),
+        CheckConstraint(
+            "source IN " + _sql_list(ATTACHMENT_SOURCES), name="ck_attachment_source"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target_type: Mapped[str] = mapped_column(String(20), index=True)
+    target_id: Mapped[int] = mapped_column(Integer, index=True)
+    kind: Mapped[str] = mapped_column(String(20), default="other")
+    source: Mapped[str] = mapped_column(String(10), default="web")
+    #: Путь ОТНОСИТЕЛЬНО корня хранилища. Абсолютный путь здесь — ошибка.
+    stored_path: Mapped[str] = mapped_column(String(500))
+    #: Имя, под которым файл прислали: его показываем человеку.
+    original_name: Mapped[str] = mapped_column(String(255))
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    uploaded_by: Mapped[str | None] = mapped_column(String(160))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    @property
+    def kind_label(self) -> str:
+        return ATTACHMENT_KINDS.get(self.kind, self.kind)
+
+    @property
+    def source_label(self) -> str:
+        return ATTACHMENT_SOURCES.get(self.source, self.source)
+
+    @property
+    def size_text(self) -> str:
+        """Размер, читаемый человеком."""
+        size = self.size_bytes or 0
+        if size < 1024:
+            return f"{size} Б"
+        if size < 1024 * 1024:
+            return f"{size / 1024:.0f} КБ"
+        return f"{size / 1024 / 1024:.1f} МБ"

@@ -8,18 +8,25 @@ from pathlib import Path
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import security, services, session_cookie
+from app import attachments, security, services, session_cookie
 from app.database import get_session, init_db
 from app.models import (
+    ATTACHMENT_KINDS,
     AUDIT_TYPES,
+    Attachment,
     USER_ROLES,
     User,
     AuditLog,
@@ -418,6 +425,89 @@ async def unauthorized_handler(request: Request, exc: HTTPException):
     raise exc
 
 
+# --------------------------------------------------------------------------
+# Вложения
+# --------------------------------------------------------------------------
+
+
+@app.post("/attachments/{target_type}/{target_id}")
+async def attachment_upload(
+    target_type: str,
+    target_id: int,
+    file: UploadFile = File(...),
+    kind: str = Form("other"),
+    notes: str = Form(""),
+    back: str = Form(""),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
+    db: Session = Depends(get_session),
+):
+    """Приложить файл к объекту."""
+    target = back or f"/instruments/{target_id}"
+    try:
+        data = await file.read()
+        attachments.attach(
+            db,
+            target_type,
+            target_id,
+            data=data,
+            original_name=file.filename or "файл",
+            kind=kind,
+            source="web",
+            uploaded_by=actor.name,
+            notes=notes.strip() or None,
+        )
+        db.commit()
+    except attachments.AttachmentError as exc:
+        return redirect(target, err=str(exc))
+    return redirect(target, msg="Документ приложен")
+
+
+@app.get("/attachments/{attachment_id}/download")
+def attachment_download(
+    attachment_id: int,
+    actor: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_session),
+):
+    """Отдать файл вложения.
+
+    Имя, под которым файл скачивается, берём исходное: человек искал
+    «Свидетельство о поверке.pdf», а не «certificate_2026-09-06_...».
+    """
+    record = db.get(Attachment, attachment_id)
+    if record is None:
+        return redirect("/instruments", err="Вложение не найдено")
+
+    path = attachments.to_full_path(record.stored_path)
+    if not path.exists():
+        # Запись есть, файла нет — это надо сказать прямо, а не отдать
+        # пустой ответ: человек ищет документ, который ему нужен сейчас.
+        return redirect(
+            f"/{record.target_type}s/{record.target_id}",
+            err=f"Файл «{record.original_name}» не найден в хранилище",
+        )
+    return FileResponse(path, filename=record.original_name)
+
+
+@app.post("/attachments/{attachment_id}/delete")
+def attachment_delete(
+    attachment_id: int,
+    back: str = Form(""),
+    actor: CurrentUser = Depends(guard(Permission.INSTRUMENT_EDIT)),
+    db: Session = Depends(get_session),
+):
+    """Открепить документ. Файл в хранилище остаётся."""
+    record = db.get(Attachment, attachment_id)
+    target = back or (
+        f"/instruments/{record.target_id}" if record else "/instruments"
+    )
+    try:
+        attachments.delete(db, attachment_id, deleted_by=actor.name)
+        db.commit()
+    except attachments.AttachmentError as exc:
+        return redirect(target, err=str(exc))
+    return redirect(target, msg="Документ откреплён")
+
+
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:
     """CSV с BOM и «;» — открывается в Excel без плясок с кодировкой."""
     buffer = io.StringIO()
@@ -580,6 +670,8 @@ def instrument_detail(request: Request, instrument_id: int, db: Session = Depend
         state=services.verification_state(instrument),
         sites=db.scalars(select(Site).where(Site.status == "active").order_by(Site.name)).all(),
         types=db.scalars(select(InstrumentType).order_by(InstrumentType.name)).all(),
+        attachments=attachments.for_target(db, "instrument", instrument_id),
+        attachment_kinds=ATTACHMENT_KINDS,
     )
 
 

@@ -6,3 +6,4 @@ venv/
 *.sqlite3
 .pytest_cache/
 exports/
+storage/

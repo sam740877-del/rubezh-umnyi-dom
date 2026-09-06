@@ -36,7 +36,12 @@ from typing import NamedTuple
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.migrations import m001_status_constraints, m002_audit_log, m003_users
+from app.migrations import (
+    m001_status_constraints,
+    m002_audit_log,
+    m003_users,
+    m004_attachments,
+)
 from app.models import SchemaVersion
 
 
@@ -53,6 +58,7 @@ MIGRATIONS: list[Migration] = [
     Migration(1, m001_status_constraints.TITLE, m001_status_constraints.upgrade),
     Migration(2, m002_audit_log.TITLE, m002_audit_log.upgrade),
     Migration(3, m003_users.TITLE, m003_users.upgrade),
+    Migration(4, m004_attachments.TITLE, m004_attachments.upgrade),
 ]
 
 

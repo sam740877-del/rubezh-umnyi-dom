@@ -118,4 +118,54 @@
     {% else %}<tr><td colspan="5" class="muted">Перемещений не было.</td></tr>{% endfor %}
   </table>
 </div>
+
+<h2>Документы прибора</h2>
+<div class="panel">
+  {% if user.can('instrument.edit') %}
+  <form class="inline" method="post" action="/attachments/instrument/{{ instrument.id }}"
+        enctype="multipart/form-data">
+    <input type="hidden" name="back" value="/instruments/{{ instrument.id }}">
+    <div style="flex:1 1 200px"><label>Род документа</label>
+      <select name="kind">
+        {% for key, title in attachment_kinds.items() %}
+        <option value="{{ key }}" {{ 'selected' if key == 'passport' }}>{{ title }}</option>
+        {% endfor %}
+      </select></div>
+    <div style="flex:2 1 240px"><label>Файл</label><input type="file" name="file" required></div>
+    <div style="flex:1 1 200px"><label>Примечание</label><input name="notes"></div>
+    <button type="submit">Приложить</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Документ</th><th>Род</th><th>Размер</th><th>Загрузил</th><th>Когда</th><th>Откуда</th><th></th></tr>
+    {% for a in attachments %}
+    <tr>
+      <td><a href="/attachments/{{ a.id }}/download">{{ a.original_name }}</a>
+        {% if a.notes %}<div class="small muted">{{ a.notes }}</div>{% endif %}</td>
+      <td class="small">{{ a.kind_label }}</td>
+      <td class="small nowrap">{{ a.size_text }}</td>
+      <td class="small">{{ a.uploaded_by or '—' }}</td>
+      <td class="small nowrap">{{ a.uploaded_at.strftime('%d.%m.%Y') if a.uploaded_at }}</td>
+      <td class="small">
+        {% if a.source == 'bot' %}<span class="badge neutral">{{ a.source_label }}</span>
+        {% else %}{{ a.source_label }}{% endif %}
+      </td>
+      <td class="nowrap">
+        {% if user.can('instrument.edit') %}
+        <form method="post" action="/attachments/{{ a.id }}/delete" style="display:inline">
+          <input type="hidden" name="back" value="/instruments/{{ instrument.id }}">
+          <button type="submit" class="btn ghost">Открепить</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">Документов пока нет.
+      Свидетельства о поверке и паспорта грузят здесь, акты с подписью — из бота.</td></tr>
+    {% endfor %}
+  </table>
+</div>
 {% endblock %}
