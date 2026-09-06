@@ -7,3 +7,4 @@ venv/
 .pytest_cache/
 exports/
 storage/
+backups/

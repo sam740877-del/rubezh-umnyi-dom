@@ -21,7 +21,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import attachments, notifications, security, services, session_cookie
+from app import attachments, backup, notifications, security, services, session_cookie
 from app.database import get_session, init_db
 from app.models import (
     ATTACHMENT_KINDS,
@@ -564,6 +564,40 @@ def notifications_scan(
     if created:
         return redirect("/notifications", msg=f"Создано уведомлений: {created}")
     return redirect("/notifications", msg="Новых напоминаний нет — всё уже разослано")
+
+
+# --------------------------------------------------------------------------
+# Резервные копии
+# --------------------------------------------------------------------------
+
+
+@app.get("/backups", response_class=HTMLResponse)
+def backups_view(
+    request: Request,
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+):
+    """Состояние резервных копий. Видит администратор."""
+    return render(
+        request,
+        "backups.html",
+        backups=backup.list_backups(),
+        warning=backup.staleness(),
+        folder=backup.backup_dir(),
+    )
+
+
+@app.post("/backups/create")
+def backups_create(
+    actor: CurrentUser = Depends(guard(Permission.USER_MANAGE)),
+    db: Session = Depends(get_session),
+):
+    """Снять копию базы сейчас."""
+    try:
+        info = backup.create_backup(db)
+        db.commit()
+    except backup.BackupError as exc:
+        return redirect("/backups", err=str(exc))
+    return redirect("/backups", msg=f"Копия снята: {info.size_text}")
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:

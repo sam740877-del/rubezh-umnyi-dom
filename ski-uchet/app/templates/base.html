@@ -30,6 +30,7 @@
     <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
     {% if user.can('user.manage') %}
     <a href="/users" class="{{ 'active' if section == 'users' }}">Пользователи</a>
+    <a href="/backups" class="{{ 'active' if section == 'backups' }}">Копии</a>
     {% endif %}
   </nav>
   {# Подпись вошедшего и выход — у правого края. «Выйти» рядом с разделами

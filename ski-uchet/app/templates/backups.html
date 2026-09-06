@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Резервные копии — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Резервные копии</h1>
+
+{# Строка состояния стоит ДО настроек и кнопок: человек приходит сюда
+   с вопросом «а копии вообще делаются?», и ответ должен стоять раньше
+   того, чем их настраивают (приём донора, R-95 БПО). #}
+{% if warning %}
+<div class="flash err">{{ warning.text }}</div>
+{% elif backups %}
+<p class="sub">Последняя копия: <b>{{ backups[0].created_text }}</b> ·
+всего копий: {{ backups|length }} · {{ backups[0].size_text }}</p>
+{% else %}
+<p class="sub">Копий пока нет.</p>
+{% endif %}
+
+<div class="panel">
+  <div class="btn-row">
+    <form method="post" action="/backups/create" style="display:inline">
+      <button type="submit">Снять копию сейчас</button>
+    </form>
+  </div>
+  <p class="small muted" style="margin-top:10px">
+    Копия снимается штатным механизмом базы и сразу проверяется по содержимому.
+    Повреждённая копия удаляется и за успешную не считается: копия, которая
+    выглядит целой, но не открывается, — худший отказ из возможных.
+  </p>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Когда снята</th><th>Размер</th><th>Файл</th></tr>
+    {% for b in backups %}
+    <tr>
+      <td class="nowrap">{{ b.created_text }}</td>
+      <td class="nowrap">{{ b.size_text }}</td>
+      <td class="small muted">{{ b.path.name }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="muted">Копий пока нет. Снимите первую кнопкой выше.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Как вернуть базу из копии</h2>
+  <p>Кнопки «Восстановить» здесь нет намеренно: восстановление затирает всё,
+  что накопилось после снятия копии. Такое делают руками, понимая, что теряют.</p>
+  <p>Порядок действий описан в файле <code>docs/BACKUP.md</code> — там же
+  сказано, что проверить, если система предупреждает о молчании копий.</p>
+  <p class="small muted">Папка копий: <code>{{ folder }}</code>.
+  Вложения к приборам в копию не входят — они лежат отдельно, в папке
+  <code>storage</code>, и копируются своими средствами.</p>
+</div>
+{% endblock %}
