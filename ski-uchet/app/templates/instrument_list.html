@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Перечень СИ — {{ report.site.name }}{% endblock %}
+{% block content %}
+
+{# На экране — предупреждение и кнопки; при печати они не нужны. #}
+<div class="no-print">
+  <h1>Перечень средств измерений</h1>
+  <p class="sub">Документ для заказчика: какие приборы применяются на объекте
+  и до какого срока они поверены.</p>
+
+  {% if report.problems %}
+  <div class="flash err">
+    Приборов с просроченной поверкой или без данных о ней: {{ report.problems }}.
+    Такой перечень заказчику лучше не отдавать — сперва разберитесь с поверками.
+  </div>
+  {% endif %}
+
+  <div class="btn-row" style="margin-bottom:18px">
+    <button type="button" onclick="window.print()">Напечатать</button>
+    <a class="btn ghost" href="/export/site-{{ report.site.id }}-list.csv">Выгрузить в CSV</a>
+    <a class="btn ghost" href="/sites/{{ report.site.id }}">К участку</a>
+  </div>
+</div>
+
+{# Сам документ. Шапка своя, потому что при печати шапки системы нет. #}
+<div class="document">
+  <div class="doc-head">
+    <h2>Перечень средств измерений, применяемых на объекте</h2>
+    <p><b>Объект:</b> {{ report.site.name }}{% if report.site.address %},
+      {{ report.site.address }}{% endif %}</p>
+    <p><b>Договор:</b> {{ report.site.contract.number }} от
+      {{ m.date_ru(report.site.contract.signed_on) }} ·
+      {{ report.site.contract.customer }}</p>
+    {% if report.site.annex_no %}
+    <p><b>Комплект закреплён:</b> приложение № {{ report.site.annex_no }}{%
+      if report.site.annex_date %} от {{ m.date_ru(report.site.annex_date) }}{% endif %}</p>
+    {% endif %}
+    {% if company_name %}<p><b>Организация:</b> {{ company_name }}</p>{% endif %}
+    <p><b>Составлен:</b> {{ m.date_ru(report.prepared_on) }}</p>
+  </div>
+
+  <table class="doc-table">
+    <tr>
+      <th style="width:38px">№</th>
+      <th>Наименование средства измерения</th>
+      <th>Тип</th>
+      <th>Зав. №</th>
+      <th>Инв. №</th>
+      <th>Поверен до</th>
+      <th>Свидетельство</th>
+    </tr>
+    {% for row in report.rows %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ row.instrument.name }}</td>
+      <td>{{ row.instrument.type.name }}</td>
+      <td>{{ row.instrument.serial_no or '—' }}</td>
+      <td>{{ row.instrument.inventory_no }}</td>
+      <td class="nowrap">{{ m.date_ru(row.valid_until) if row.valid_until else '—' }}
+        {%- if row.state.code in ('expired', 'missing') %}
+        <span class="doc-warn">({{ row.state.label|lower }})</span>{% endif %}</td>
+      <td>{{ row.certificate_no or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7">На объекте не числится ни одного прибора.</td></tr>
+    {% endfor %}
+  </table>
+
+  <div class="doc-sign">
+    <p>Ответственный за участок: {{ report.site.responsible_name or '_________________' }}
+      &nbsp;&nbsp;&nbsp; ______________ &nbsp;/&nbsp; подпись</p>
+    <p style="margin-top:22px">Всего средств измерений: {{ report.total }}.</p>
+  </div>
+</div>
+{% endblock %}

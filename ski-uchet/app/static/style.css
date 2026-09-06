@@ -442,7 +442,8 @@ header.top nav .menu .drop a:hover {
 
    Сеть советует для телефона три-пять пунктов плюс бургер (паттерн
    Priority+, css-tricks.com/the-priority-navigation-pattern). Эталон
-   семьи (`C:\myproject\docs\standard\etalonesponsive_breakpoints.html`)
+   семьи (`C:\myproject\docs\standard\etalon
+esponsive_breakpoints.html`)
    добавляет к этому важное: «Автоматического сворачивания по ширине
    окна здесь нет нарочно... потому что меню, схлопывающееся само,
    человек читает как поломку».
@@ -505,3 +506,54 @@ header.top .theme:hover { background: rgba(255, 255, 255, .12); }
 }
 [data-theme="dark"] .flash.msg { background: var(--tint-ok); }
 [data-theme="dark"] .flash.err { background: var(--tint-bad); }
+
+
+/* --------------------------------------------------------------------------
+   Документ для заказчика: перечень СИ
+
+   На экране выглядит как обычная страница, на бумагу идёт документом:
+   без шапки системы, без кнопок, чёрным по белому.
+   -------------------------------------------------------------------------- */
+
+.document {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 26px 30px;
+}
+.doc-head h2 { margin: 0 0 14px; font-size: 17px; }
+.doc-head p { margin: 3px 0; font-size: 14px; }
+.doc-table { margin-top: 20px; font-size: 13.5px; }
+.doc-table th, .doc-table td { border: 1px solid var(--line); padding: 6px 8px; }
+.doc-table th { background: var(--tint-neutral); text-transform: none; font-size: 13px; }
+.doc-warn { color: var(--bad); font-weight: 600; }
+.doc-sign { margin-top: 26px; font-size: 14px; }
+.doc-sign p { margin: 4px 0; }
+
+@media print {
+  /* Печатаем ДОКУМЕНТ, а не снимок экрана. Тёмная тема на бумаге
+     съедает картридж и читается хуже — печать всегда светлая. */
+  :root, [data-theme="dark"] {
+    --bg: #fff;
+    --panel: #fff;
+    --line: #000;
+    --text: #000;
+    --muted: #000;
+    --tint-neutral: #fff;
+    --bad: #000;
+    /* Ссылки тоже чёрные: на бумаге синий становится серым и читается
+       хуже, а нажать на него всё равно нельзя. */
+    --accent: #000;
+  }
+  a { text-decoration: none; }
+  header.top, .no-print, .flash { display: none !important; }
+  main { max-width: none; padding: 0; }
+  body { background: #fff; font-size: 12pt; }
+  .document { border: 0; padding: 0; border-radius: 0; }
+  .doc-table { page-break-inside: auto; }
+  .doc-table tr { page-break-inside: avoid; }
+  /* Заголовок таблицы повторяется на каждой странице: без него вторая
+     страница перечня — набор чисел без объяснения, что это за столбцы. */
+  .doc-table thead { display: table-header-group; }
+  .doc-warn { font-weight: 700; text-decoration: underline; }
+}

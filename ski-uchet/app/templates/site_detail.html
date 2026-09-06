@@ -140,6 +140,9 @@
 </div>
 
 <div class="btn-row">
+  {# Перечень СИ — первым и обычной кнопкой, а не бледной: это документ,
+     который заказчик требует чаще всего, и ходят за ним постоянно. #}
+  <a class="btn" href="/sites/{{ site.id }}/instrument-list">Перечень СИ для заказчика</a>
   <a class="btn ghost" href="/export/site-{{ site.id }}.csv">Выгрузить комплектность в CSV</a>
   <a class="btn ghost" href="/movements?site_id={{ site.id }}">Журнал движения по участку</a>
 </div>

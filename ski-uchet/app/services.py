@@ -574,6 +574,93 @@ def apply_kit_template(session: Session, site_id: int, template_id: int) -> int:
 
 
 # --------------------------------------------------------------------------
+# Перечень средств измерений — документ для заказчика
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class InstrumentListRow:
+    """Строка перечня СИ по объекту."""
+
+    instrument: Instrument
+    state: VerificationState
+
+    @property
+    def valid_until(self) -> date | None:
+        return self.instrument.verification_valid_until
+
+    @property
+    def certificate_no(self) -> str | None:
+        """Номер свидетельства о последней поверке.
+
+        Заказчик проверяет именно его: без номера строка «поверен до»
+        ничем не подтверждена.
+        """
+        свежая = None
+        for запись in self.instrument.verifications:
+            if запись.result != "ok" or not запись.valid_until:
+                continue
+            if свежая is None or запись.valid_until > свежая.valid_until:
+                свежая = запись
+        return свежая.certificate_no if свежая else None
+
+
+@dataclass
+class InstrumentListReport:
+    """Перечень СИ, применяемых на объекте.
+
+    Документ, который заказчик требует чаще всего (ответ на вопрос 19).
+    Отличается от сверки комплектности: там «сколько нужно и сколько
+    есть», здесь «какие приборы работают на объекте и до какого срока
+    они поверены».
+    """
+
+    site: Site
+    rows: list[InstrumentListRow]
+    prepared_on: date
+
+    @property
+    def total(self) -> int:
+        return len(self.rows)
+
+    @property
+    def problems(self) -> int:
+        """Сколько приборов не готовы к работе.
+
+        Число выносится наверх нарочно: перечень с просроченной поверкой
+        заказчику лучше не отдавать, а узнать об этом надо до печати,
+        а не от заказчика.
+        """
+        return sum(1 for row in self.rows if row.state.code in ("expired", "missing"))
+
+
+def instrument_list(
+    session: Session, site_id: int, today: date | None = None
+) -> InstrumentListReport:
+    """Перечень средств измерений, применяемых на объекте."""
+    today = today or date.today()
+    site = session.get(Site, site_id)
+    if site is None:
+        raise BusinessError("Участок не найден")
+
+    приборы = session.scalars(
+        select(Instrument)
+        .options(selectinload(Instrument.type), selectinload(Instrument.verifications))
+        .where(Instrument.current_site_id == site_id)
+        .order_by(Instrument.inventory_no)
+    ).all()
+
+    return InstrumentListReport(
+        site=site,
+        rows=[
+            InstrumentListRow(instrument=прибор, state=verification_state(прибор, today))
+            for прибор in приборы
+        ],
+        prepared_on=today,
+    )
+
+
+# --------------------------------------------------------------------------
 # Заявки на перемещение
 # --------------------------------------------------------------------------
 

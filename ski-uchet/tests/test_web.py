@@ -510,3 +510,76 @@ def test_absurd_setting_is_refused_with_explanation(client) -> None:
 
     assert response.status_code == 303
     assert "err=" in response.headers["location"], "отказ прошёл молча"
+
+
+# --------------------------------------------------------------------------
+# Перечень СИ — документ для заказчика
+# --------------------------------------------------------------------------
+
+
+def test_instrument_list_shows_what_customer_asks_for(client) -> None:
+    """Перечень СИ отвечает на вопрос заказчика, а не на наш.
+
+    Заказчик спрашивает: какие приборы работают на моём объекте и до
+    какого срока они поверены. Это НЕ сверка комплектности («сколько
+    нужно и сколько есть») — там другой вопрос и другой документ.
+
+    Номер свидетельства обязателен: без него строка «поверен до» ничем
+    не подтверждена, и заказчик её не примет.
+    """
+    page = client.get("/sites/1/instrument-list").text
+
+    assert "Перечень средств измерений, применяемых на объекте" in page
+    for столбец in ("Инв. №", "Зав. №", "Поверен до", "Свидетельство"):
+        assert столбец in page, f"нет столбца «{столбец}»"
+
+    # Реквизиты договора — документ без них не документ.
+    assert "Договор:" in page
+    assert "Составлен:" in page
+
+
+def test_instrument_list_warns_about_expired(client, session) -> None:
+    """Просроченная поверка в перечне названа прямо.
+
+    Перечень с просроченной поверкой заказчику лучше не отдавать,
+    и узнать об этом надо до печати, а не от заказчика.
+    """
+    from app.models import Instrument
+    from app.services import issue_instrument
+
+    просроченный = (
+        session.query(Instrument)
+        .filter(Instrument.status == "warehouse")
+        .first()
+    )
+    issue_instrument(session, просроченный.id, 1, ignore_verification=True)
+    session.commit()
+
+    page = client.get("/sites/1/instrument-list").text
+
+    assert "лучше не отдавать" in page, "не предупредили о просроченных"
+
+
+def test_instrument_list_prints_as_document(client) -> None:
+    """На бумагу идёт документ, а не снимок экрана.
+
+    Шапка системы и кнопки при печати не нужны, а тёмная тема съедает
+    картридж и читается хуже.
+    """
+    css = client.get("/static/style.css").text
+
+    assert "@media print" in css, "нет стилей печати"
+    assert "header.top, .no-print" in css, "шапка системы попадёт на бумагу"
+    assert "display: table-header-group" in css, (
+        "заголовок таблицы не повторяется — вторая страница станет "
+        "набором чисел без объяснения"
+    )
+
+
+def test_instrument_list_csv_has_same_data(client) -> None:
+    """Тот же перечень выгружается таблицей — когда нужен не документ, а данные."""
+    response = client.get("/export/site-1-list.csv")
+
+    assert response.status_code == 200
+    assert response.text.startswith("﻿"), "нет метки кодировки для Excel"
+    assert "Свидетельство" in response.text

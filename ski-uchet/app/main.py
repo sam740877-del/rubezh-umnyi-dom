@@ -922,6 +922,67 @@ async def settings_save(
     return redirect("/settings", msg="Настройки сохранены")
 
 
+# --------------------------------------------------------------------------
+# Перечень СИ — документ для заказчика
+# --------------------------------------------------------------------------
+
+
+@app.get("/sites/{site_id}/instrument-list", response_class=HTMLResponse)
+def site_instrument_list(
+    request: Request,
+    site_id: int,
+    actor: CurrentUser = Depends(require_user),
+    db: Session = Depends(get_session),
+):
+    """Перечень средств измерений, применяемых на объекте.
+
+    Документ, который заказчик требует чаще всего (ответ на вопрос 19).
+    Печатается прямо из браузера: отдельного вида для бумаги не заводим,
+    печать управляется стилями.
+    """
+    try:
+        report = services.instrument_list(db, site_id)
+    except BusinessError as error:
+        return redirect("/sites", err=str(error))
+
+    return render(
+        request,
+        "instrument_list.html",
+        report=report,
+        company_name=app_settings.get(db, app_settings.COMPANY_NAME),
+    )
+
+
+@app.get("/export/site-{site_id}-list.csv")
+def export_instrument_list(site_id: int, db: Session = Depends(get_session)):
+    """Тот же перечень таблицей — когда нужен не документ, а данные."""
+    try:
+        report = services.instrument_list(db, site_id)
+    except BusinessError as error:
+        return redirect("/sites", err=str(error))
+
+    rows = []
+    for номер, row in enumerate(report.rows, start=1):
+        rows.append(
+            [
+                номер,
+                row.instrument.name,
+                row.instrument.type.name,
+                row.instrument.serial_no or "",
+                row.instrument.inventory_no,
+                row.valid_until.strftime("%d.%m.%Y") if row.valid_until else "",
+                row.certificate_no or "",
+                row.state.label,
+            ]
+        )
+    return csv_response(
+        f"perechen-si-{site_id}.csv",
+        ["№", "Наименование", "Тип", "Зав. №", "Инв. №", "Поверен до",
+         "Свидетельство", "Состояние"],
+        rows,
+    )
+
+
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:
     """CSV с BOM и «;» — открывается в Excel без плясок с кодировкой."""
     buffer = io.StringIO()
