@@ -8,8 +8,10 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app import audit
 from app.models import (
     BLOCKED_FOR_ISSUE,
+    INSTRUMENT_STATUSES,
     ChangeRequest,
     Contract,
     Instrument,
@@ -128,6 +130,20 @@ def add_verification(
         instrument.status = "warehouse"
 
     session.flush()
+    audit.write(
+        session,
+        "Поверка: брак" if result == "fail" else "Поверка пройдена",
+        actor=organization,
+        object_type="instrument",
+        object_id=instrument.id,
+        details=(
+            f"действительна до {valid_until:%d.%m.%Y}"
+            if valid_until
+            else "срок не назначен"
+        )
+        + (f", свидетельство {certificate_no}" if certificate_no else "")
+        + (" — прибор снят с участка и отправлен в ремонт" if result == "fail" else ""),
+    )
     return record
 
 
@@ -201,6 +217,16 @@ def issue_instrument(
     )
     session.add(movement)
     session.flush()
+    audit.write(
+        session,
+        "Выдан на участок",
+        actor=person,
+        object_type="instrument",
+        object_id=instrument_id,
+        details=f"участок: {site.name}"
+        + (f", документ: {doc_no}" if doc_no else "")
+        + (", поверка не учтена" if ignore_verification else ""),
+    )
     return movement
 
 
@@ -242,6 +268,16 @@ def return_instrument(
     instrument.current_site_id = None
     instrument.status = new_status
     session.flush()
+    audit.write(
+        session,
+        "Возвращён с участка",
+        actor=person,
+        object_type="instrument",
+        object_id=instrument_id,
+        details=f"новое состояние: {INSTRUMENT_STATUSES.get(new_status, new_status)}"
+        + (f", документ: {doc_no}" if doc_no else "")
+        + (f", неисправность: {notes}" if new_status == "repair" and notes else ""),
+    )
     return movement
 
 
@@ -420,6 +456,14 @@ def apply_kit_template(session: Session, site_id: int, template_id: int) -> int:
             current.required_qty = item.required_qty
             changed += 1
     session.flush()
+    if changed:
+        audit.write(
+            session,
+            "Применён типовой комплект",
+            object_type="site",
+            object_id=site_id,
+            details=f"комплект «{template.name}», изменено позиций: {changed}",
+        )
     return changed
 
 
@@ -479,6 +523,15 @@ def create_change_request(
     )
     session.add(request)
     session.flush()
+    audit.write(
+        session,
+        "Заявка на перемещение подана",
+        actor=requested_by,
+        object_type="change_request",
+        object_id=request.id,
+        details=f"прибор {instrument.inventory_no} → участок «{target.name}»"
+        + (f", причина: {reason}" if reason else ""),
+    )
     return request
 
 
@@ -526,6 +579,15 @@ def approve_change_request(
     request.decided_on = decided_on
     request.decision_comment = comment
     session.flush()
+    audit.write(
+        session,
+        "Заявка согласована",
+        actor=decided_by,
+        object_type="change_request",
+        object_id=request.id,
+        details=f"перемещение исполнено: прибор №{request.instrument_id}"
+        + (f", комментарий: {comment}" if comment else ""),
+    )
     return request
 
 
@@ -554,6 +616,14 @@ def reject_change_request(
     request.decided_on = decided_on
     request.decision_comment = comment.strip()
     session.flush()
+    audit.write(
+        session,
+        "Заявка отклонена",
+        actor=decided_by,
+        object_type="change_request",
+        object_id=request.id,
+        details=f"причина отказа: {comment.strip()}",
+    )
     return request
 
 

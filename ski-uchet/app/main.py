@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session, selectinload
 from app import services
 from app.database import get_session, init_db
 from app.models import (
+    AUDIT_TYPES,
+    AuditLog,
     CATEGORIES,
     REQUEST_STATUSES,
     CONTRACT_STATUSES,
@@ -616,6 +618,31 @@ def movements_view(
         movements=movements,
         sites=db.scalars(select(Site).order_by(Site.name)).all(),
         filters={"site_id": site_id, "instrument_id": instrument_id},
+    )
+
+
+@app.get("/audit", response_class=HTMLResponse)
+def audit_view(
+    request: Request,
+    audit_type: str = "",
+    actor: str = "",
+    db: Session = Depends(get_session),
+):
+    """Журнал действий: кто и что делал в системе."""
+    query = select(AuditLog)
+    if audit_type:
+        query = query.where(AuditLog.audit_type == audit_type)
+    if actor.strip():
+        query = query.where(AuditLog.actor.icontains(actor.strip()))
+    entries = db.scalars(
+        query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(500)
+    ).all()
+    return render(
+        request,
+        "audit.html",
+        entries=entries,
+        audit_types=AUDIT_TYPES,
+        filters={"audit_type": audit_type, "actor": actor},
     )
 
 

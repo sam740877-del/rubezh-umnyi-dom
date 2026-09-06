@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Журнал действий — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Журнал действий</h1>
+<p class="sub">Кто и что делал в системе — записей: {{ entries|length }} (последние 500).</p>
+
+<div class="panel">
+  <form class="inline" method="get" action="/audit">
+    <div style="flex:1 1 240px"><label>Род события</label>
+      <select name="audit_type"><option value="">— все —</option>
+        {% for key, title in audit_types.items() %}
+        <option value="{{ key }}" {{ 'selected' if filters.audit_type == key }}>{{ title }}</option>
+        {% endfor %}
+      </select></div>
+    <div style="flex:1 1 240px"><label>Кто</label>
+      <input type="text" name="actor" value="{{ filters.actor }}" placeholder="фамилия или должность"></div>
+    <button type="submit">Показать</button>
+    <a class="btn ghost" href="/audit">Сбросить</a>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Объект</th><th>Подробности</th></tr>
+    {% for e in entries %}
+    <tr>
+      <td class="nowrap">{{ e.created_at.strftime('%d.%m.%Y %H:%M') if e.created_at }}</td>
+      <td>{{ e.actor }}</td>
+      <td>
+        {% if e.audit_type == 'system' %}<span class="badge neutral">{{ e.action }}</span>
+        {% else %}{{ e.action }}{% endif %}
+      </td>
+      <td class="nowrap">
+        {% if e.object_type == 'instrument' %}<a href="/instruments/{{ e.object_id }}">прибор №{{ e.object_id }}</a>
+        {% elif e.object_type == 'site' %}<a href="/sites/{{ e.object_id }}">участок №{{ e.object_id }}</a>
+        {% elif e.object_type == 'change_request' %}заявка №{{ e.object_id }}
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ e.details or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Записей пока нет.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

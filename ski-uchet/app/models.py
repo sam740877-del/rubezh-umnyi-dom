@@ -372,3 +372,52 @@ class SchemaVersion(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     applied_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+#: Род записи в журнале действий. Деловое событие — то, что сделал человек
+#: (выдал прибор, согласовал заявку); системное — то, что сделала программа
+#: сама (миграция, резервная копия, автоочистка). Разделение взято у БПО:
+#: при разборе происшествия системный шум не должен прятать людские действия.
+AUDIT_BUSINESS = "business"
+AUDIT_SYSTEM = "system"
+
+AUDIT_TYPES = {
+    AUDIT_BUSINESS: "Действие пользователя",
+    AUDIT_SYSTEM: "Системное событие",
+}
+
+
+class AuditLog(Base):
+    r"""Журнал действий: кто, когда, что сделал и с чем.
+
+    Взято у БПО (`C:\bpo\core\audit.py`) с двумя правками, обе — из разбора
+    граблей семьи:
+
+    1. **Объект хранится ссылкой, а не текстом.** У донора `target` это
+       строка вида `id=17`. Урок «Заявок» (миграция 04): журнал хранил
+       обрезанный текст, и «две заявки с одинаковым названием смешивались,
+       а длинная не находилась вовсе». Восстановить связь задним числом
+       нельзя честно. Поэтому здесь `object_type` + `object_id`.
+    2. **Действующее лицо остаётся строкой, но с заделом на учётные записи.**
+       Пока в системе нет входа, пишем имя как есть; появятся учётные
+       записи (этап 2) — рядом встанет `actor_id`, а строка сохранится как
+       снимок на момент события: человек может уволиться, а летопись
+       обязана остаться читаемой.
+    """
+
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        CheckConstraint(
+            "audit_type IN " + _sql_list(AUDIT_TYPES),
+            name="ck_audit_type",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    actor: Mapped[str] = mapped_column(String(160))
+    audit_type: Mapped[str] = mapped_column(String(16), default=AUDIT_BUSINESS)
+    action: Mapped[str] = mapped_column(String(120))
+    object_type: Mapped[str | None] = mapped_column(String(40), index=True)
+    object_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    details: Mapped[str | None] = mapped_column(Text)

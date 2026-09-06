@@ -33,9 +33,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.migrations import m001_status_constraints
+from app.migrations import m001_status_constraints, m002_audit_log
 from app.models import SchemaVersion
 
 
@@ -50,22 +51,35 @@ class Migration(NamedTuple):
 #: Все миграции проекта по порядку.
 MIGRATIONS: list[Migration] = [
     Migration(1, m001_status_constraints.TITLE, m001_status_constraints.upgrade),
+    Migration(2, m002_audit_log.TITLE, m002_audit_log.upgrade),
 ]
 
 
 def current_version(session: Session) -> int:
-    """Номер последней применённой миграции. Пустая база — 0."""
-    row = session.query(SchemaVersion).first()
-    return int(row.version) if row else 0
+    """Номер последней применённой миграции. Пустая база — 0.
+
+    Берём МАКСИМУМ, а не первую попавшуюся строку: у донора здесь
+    `.first()` без сортировки, и пока строка одна — разницы нет. Здесь
+    строк на мгновение оказывалось две (см. `set_version`), и `.first()`
+    возвращал то единицу, то двойку — миграции применялись по кругу
+    при каждом запуске сервера.
+    """
+    version = session.scalar(select(func.max(SchemaVersion.version)))
+    return int(version) if version is not None else 0
 
 
 def set_version(session: Session, version: int) -> None:
-    """Записать версию схемы (строка в таблице всегда одна)."""
-    row = session.query(SchemaVersion).first()
-    if row is None:
-        session.add(SchemaVersion(version=version))
-    else:
-        row.version = version
+    """Записать версию схемы. Строка в таблице всегда одна.
+
+    Почему не `first()` с добавлением при отсутствии: миграция 1
+    пересоздаёт таблицы, и внутри одной транзакции запрос не видел уже
+    добавленную строку — появлялась вторая. Здесь сначала чистим, потом
+    вставляем: результат один и тот же при любом порядке вызовов.
+    """
+    session.flush()
+    session.query(SchemaVersion).delete()
+    session.add(SchemaVersion(version=version))
+    session.flush()
 
 
 def target_version() -> int:

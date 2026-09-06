@@ -44,7 +44,7 @@ APP = Path(__file__).resolve().parent.parent / "app"
 
 #: Слой логики: эти модули переживут смену интерфейса и переедут в Qt
 #: как есть. Всё, что решает «можно или нельзя», живёт здесь.
-CORE_MODULES = ("models.py", "services.py", "database.py", "seed.py")
+CORE_MODULES = ("models.py", "services.py", "database.py", "seed.py", "audit.py")
 
 #: Пакеты интерфейса. Слой логики не имеет права о них знать.
 #: Список открытый: добавится Qt — добавится и сюда, чтобы правило
