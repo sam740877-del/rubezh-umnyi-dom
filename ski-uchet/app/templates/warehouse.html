@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Склад — Учёт СКИ{% endblock %}
+{% block content %}
+<h1>Склад</h1>
+<p class="sub">Приборы, которыми кладовщик может распорядиться прямо сейчас.</p>
+
+<div class="grid cards">
+  <div class="card ok"><div class="num">{{ report.ready }}</div><div class="lbl">готовы к выдаче</div></div>
+  <div class="card {{ 'bad' if report.blocked else '' }}"><div class="num">{{ report.blocked }}</div><div class="lbl">лежат, но выдать нельзя</div></div>
+  <div class="card"><div class="num">{{ report.by_status.get('in_use', 0) }}</div><div class="lbl">на участках</div></div>
+  <div class="card {{ 'warn' if report.by_status.get('verification') else '' }}"><div class="num">{{ report.by_status.get('verification', 0) }}</div><div class="lbl">на поверке</div></div>
+  <div class="card {{ 'warn' if report.by_status.get('repair') else '' }}"><div class="num">{{ report.by_status.get('repair', 0) }}</div><div class="lbl">в ремонте</div></div>
+  <div class="card"><div class="num">{{ report.by_status.get('written_off', 0) }}</div><div class="lbl">списано</div></div>
+</div>
+
+<div class="panel">
+  <form class="inline" method="get" action="/warehouse">
+    <div style="flex:1 1 220px"><label>Тип прибора</label>
+      <select name="type_id"><option value="">— любой —</option>
+        {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if filters.type_id == t.id|string }}>{{ t.name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:0 1 auto"><label>Показывать</label>
+      <select name="only">
+        <option value="">все на складе</option>
+        <option value="ready" {{ 'selected' if filters.only == 'ready' }}>только готовые к выдаче</option>
+        <option value="blocked" {{ 'selected' if filters.only == 'blocked' }}>только заблокированные</option>
+      </select></div>
+    <button type="submit">Показать</button>
+    <a class="btn ghost" href="/warehouse">Сбросить</a>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  <table>
+    <tr><th>Инв. №</th><th>Прибор</th><th>Тип</th><th>Поверка</th><th>Готовность</th><th></th></tr>
+    {% for row in rows %}
+    <tr>
+      <td class="nowrap"><a href="/instruments/{{ row.instrument.id }}">{{ row.instrument.inventory_no }}</a></td>
+      <td>{{ row.instrument.name }}{% if row.instrument.model %} <span class="muted">{{ row.instrument.model }}</span>{% endif %}</td>
+      <td>{{ row.instrument.type.name }}</td>
+      <td>{{ m.state_badge(row.state) }}</td>
+      <td>
+        {% if row.can_issue %}<span class="badge ok">можно выдать</span>
+        {% else %}<span class="badge bad">выдача запрещена</span>{% endif %}
+      </td>
+      <td class="nowrap">
+        {% if row.can_issue %}<a class="btn" href="/instruments/{{ row.instrument.id }}">Выдать</a>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">На складе ничего не числится.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

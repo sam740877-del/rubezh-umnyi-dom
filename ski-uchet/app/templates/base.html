@@ -10,16 +10,19 @@
 <header class="top">
   <span class="brand">Учёт СКИ</span>
   <nav>
-    <a href="/">Сводка</a>
-    <a href="/instruments">Приборы</a>
-    <a href="/sites">Участки</a>
-    <a href="/requests">Заявки</a>
-    <a href="/templates">Типовые комплекты</a>
-    <a href="/contracts">Договоры</a>
-    <a href="/verifications">Поверки</a>
-    <a href="/movements">Журнал движения</a>
-    <a href="/audit">Журнал действий</a>
-    <a href="/types">Справочник типов</a>
+    {# Подсветка открытого раздела: `section` считает render() по первому
+       куску пути, поэтому карточка прибора подсвечивает «Приборы». #}
+    <a href="/" class="{{ 'active' if section == 'dashboard' }}">Сводка</a>
+    <a href="/warehouse" class="{{ 'active' if section == 'warehouse' }}">Склад</a>
+    <a href="/instruments" class="{{ 'active' if section == 'instruments' }}">Приборы</a>
+    <a href="/sites" class="{{ 'active' if section == 'sites' }}">Участки</a>
+    <a href="/requests" class="{{ 'active' if section == 'requests' }}">Заявки</a>
+    <a href="/templates" class="{{ 'active' if section == 'templates' }}">Типовые комплекты</a>
+    <a href="/contracts" class="{{ 'active' if section == 'contracts' }}">Договоры</a>
+    <a href="/verifications" class="{{ 'active' if section == 'verifications' }}">Поверки</a>
+    <a href="/movements" class="{{ 'active' if section == 'movements' }}">Журнал движения</a>
+    <a href="/audit" class="{{ 'active' if section == 'audit' }}">Журнал действий</a>
+    <a href="/types" class="{{ 'active' if section == 'types' }}">Справочник типов</a>
   </nav>
 </header>
 <main>

@@ -25,6 +25,12 @@ from app.models import (
 
 WARN_DAYS = 30  # за сколько дней до конца поверки прибор считается «истекающим»
 
+#: Состояния поверки, при которых выдача запрещена без особой отметки.
+#: Держим одной константой, чтобы экран склада и сама операция выдачи
+#: не разошлись: список «готово к выдаче» обязан совпадать с тем, что
+#: программа реально позволит выдать.
+BLOCKS_ISSUE = ("expired", "missing")
+
 
 class BusinessError(Exception):
     """Нарушение правила учёта — показывается пользователю понятным текстом."""
@@ -198,7 +204,7 @@ def issue_instrument(
         raise BusinessError(f"Участок «{site.name}» не действует ({site.status_label})")
 
     state = verification_state(instrument, happened_on)
-    if state.code in ("expired", "missing") and not ignore_verification:
+    if state.code in BLOCKS_ISSUE and not ignore_verification:
         raise BusinessError(
             f"{state.label}. Выдача на участок запрещена — проведите поверку "
             f"или подтвердите выдачу принудительно"
@@ -279,6 +285,81 @@ def return_instrument(
         + (f", неисправность: {notes}" if new_status == "repair" and notes else ""),
     )
     return movement
+
+
+# --------------------------------------------------------------------------
+# Склад
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class WarehouseRow:
+    """Прибор на складе вместе с тем, что мешает его выдать."""
+
+    instrument: Instrument
+    state: VerificationState
+
+    @property
+    def can_issue(self) -> bool:
+        """Можно ли выдать прибор прямо сейчас, без особой отметки.
+
+        Причина отказа берётся из той же константы, что и сама операция
+        выдачи: иначе экран обещал бы одно, а программа делала другое.
+        """
+        return self.state.code not in BLOCKS_ISSUE
+
+
+@dataclass
+class WarehouseReport:
+    """Что физически лежит на складе и что с этим можно делать."""
+
+    rows: list[WarehouseRow]
+    by_status: dict[str, int]
+
+    @property
+    def ready(self) -> int:
+        """Готовы к выдаче — самое нужное число на этом экране."""
+        return sum(1 for row in self.rows if row.can_issue)
+
+    @property
+    def blocked(self) -> int:
+        """Лежат, но выдать нельзя: просроченная поверка."""
+        return sum(1 for row in self.rows if not row.can_issue)
+
+
+def warehouse_report(
+    session: Session, today: date | None = None, type_id: int | None = None
+) -> WarehouseReport:
+    """Состояние склада: что лежит и что из этого готово к выдаче.
+
+    Складом считаем приборы со статусом «на складе» — то есть те, которыми
+    кладовщик может распорядиться. Приборы в ремонте и на поверке физически
+    тоже могут лежать в конторе, но распорядиться ими нельзя, поэтому в
+    список они не идут; их число видно в сводке по состояниям.
+    """
+    today = today or date.today()
+
+    query = (
+        select(Instrument)
+        .options(selectinload(Instrument.type), selectinload(Instrument.verifications))
+        .where(Instrument.status == "warehouse")
+    )
+    if type_id:
+        query = query.where(Instrument.type_id == type_id)
+
+    rows = [
+        WarehouseRow(instrument=item, state=verification_state(item, today))
+        for item in session.scalars(query.order_by(Instrument.inventory_no))
+    ]
+
+    counts = dict(
+        session.execute(
+            select(Instrument.status, func.count(Instrument.id)).group_by(Instrument.status)
+        ).all()
+    )
+    by_status = {key: counts.get(key, 0) for key in INSTRUMENT_STATUSES}
+
+    return WarehouseReport(rows=rows, by_status=by_status)
 
 
 # --------------------------------------------------------------------------

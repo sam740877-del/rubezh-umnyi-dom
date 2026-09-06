@@ -102,7 +102,20 @@ def redirect(url: str, *, msg: str | None = None, err: str | None = None) -> Red
 def render(request: Request, template: str, **context) -> HTMLResponse:
     context.setdefault("msg", request.query_params.get("msg"))
     context.setdefault("err", request.query_params.get("err"))
+    context.setdefault("section", current_section(request))
     return templates.TemplateResponse(request, template, context)
+
+
+def current_section(request: Request) -> str:
+    """Какой раздел открыт — для подсветки в шапке.
+
+    Считаем по первому куску пути, а не по полному совпадению: карточка
+    прибора `/instruments/17` обязана подсвечивать «Приборы» так же, как
+    и список. Иначе человек, провалившись в карточку, теряет из виду,
+    где находится.
+    """
+    first = request.url.path.strip("/").split("/")[0]
+    return first or "dashboard"
 
 
 def csv_response(filename: str, header: list[str], rows: list[list]) -> StreamingResponse:
@@ -133,6 +146,32 @@ def dashboard(request: Request, db: Session = Depends(get_session)):
 # --------------------------------------------------------------------------
 # Приборы
 # --------------------------------------------------------------------------
+
+
+@app.get("/warehouse", response_class=HTMLResponse)
+def warehouse_view(
+    request: Request,
+    type_id: str = "",
+    only: str = "",
+    db: Session = Depends(get_session),
+):
+    """Склад: что лежит и что из этого готово к выдаче."""
+    report = services.warehouse_report(db, type_id=int(type_id) if type_id else None)
+
+    rows = report.rows
+    if only == "ready":
+        rows = [r for r in rows if r.can_issue]
+    elif only == "blocked":
+        rows = [r for r in rows if not r.can_issue]
+
+    return render(
+        request,
+        "warehouse.html",
+        report=report,
+        rows=rows,
+        types=db.scalars(select(InstrumentType).order_by(InstrumentType.name)).all(),
+        filters={"type_id": type_id, "only": only},
+    )
 
 
 @app.get("/instruments", response_class=HTMLResponse)

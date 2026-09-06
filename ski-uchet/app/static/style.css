@@ -29,9 +29,26 @@ header.top {
   flex-wrap: wrap;
 }
 header.top .brand { font-weight: 700; font-size: 17px; letter-spacing: .3px; }
-header.top nav { display: flex; gap: 16px; flex-wrap: wrap; }
-header.top nav a { color: #cfe0f2; }
-header.top nav a.active, header.top nav a:hover { color: #fff; }
+header.top nav { display: flex; gap: 6px; flex-wrap: wrap; }
+header.top nav a {
+  color: #cfe0f2;
+  padding: 5px 10px;
+  border-radius: 5px;
+  /* Подложка прозрачна, но объявлена: иначе переход на наведении
+     стартует с пустоты и мигает. */
+  background: transparent;
+  transition: background .12s, color .12s;
+}
+header.top nav a:hover { color: #fff; background: rgba(255, 255, 255, .10); text-decoration: none; }
+/* Открытый раздел: заливка плюс полный контраст. Одним цветом текста
+   его не отличить — на тёмной шапке разница между #cfe0f2 и #fff
+   слишком мала, чтобы поймать её взглядом. */
+header.top nav a.active {
+  color: #16324f;
+  background: #fff;
+  font-weight: 600;
+}
+header.top nav a.active:hover { color: #16324f; background: #fff; }
 
 main { max-width: 1240px; margin: 0 auto; padding: 22px 20px 60px; }
 h1 { font-size: 23px; margin: 0 0 4px; }
