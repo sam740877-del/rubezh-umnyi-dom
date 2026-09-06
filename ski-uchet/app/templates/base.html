@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Учёт СКИ{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Ставим тему ДО отрисовки: иначе тёмная страница на мгновение
+    // мигнёт белым при каждом переходе — заметно и неприятно.
+    try {
+      var saved = localStorage.getItem('ski-theme');
+      if (saved) { document.documentElement.setAttribute('data-theme', saved); }
+    } catch (e) {}
+  </script>
 </head>
 <body>
 {% if user %}
@@ -76,6 +84,30 @@
       <span class="count">{{ unread }}</span>
     </a>
     {% endif %}
+    {# Переключатель темы. Значок показывает ТУ тему, во что переключимся:
+       значок текущей человек и так видит вокруг себя. #}
+    <button type="button" class="theme" onclick="switchTheme()"
+            title="Светлая или тёмная тема" aria-label="Сменить тему">
+      {# Иконки Lucide того же набора, что в настольных модулях семьи
+         (`ui/icons/lucide/`). Не эмодзи: те рисуются шрифтом системы,
+         выглядят по-разному на разных машинах и не подчиняются цвету темы.
+         Здесь `stroke="currentColor"` — иконка красится тем же цветом,
+         что и текст рядом, одна на обе темы. #}
+      <svg class="to-dark" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+      </svg>
+      <svg class="to-light" xmlns="http://www.w3.org/2000/svg" width="17" height="17"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2"/><path d="M12 20v2"/>
+        <path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>
+        <path d="M2 12h2"/><path d="M20 12h2"/>
+        <path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+      </svg>
+    </button>
     <span title="{{ user.login }}">{{ user.title }}</span>
     <a href="/logout" class="logout">Выйти</a>
   </div>
@@ -86,5 +118,56 @@
   {% if err %}<div class="flash err">{{ err }}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>
+
+<script>
+// Списки в шапке раскрываются нажатием. Наведения мало: на кнопку тянутся
+// нажать, а на телефоне и планшете наведения нет вовсе — там списки были
+// бы недоступны совсем.
+//
+// Десять строк прямо здесь, а не отдельным файлом: заводить файл ради
+// одного обработчика — лишняя сущность и лишний запрос на каждую страницу.
+document.addEventListener('click', function (event) {
+  var button = event.target.closest('header.top nav .menu > button');
+
+  // Нажали мимо списков — закрываем все открытые.
+  document.querySelectorAll('header.top nav .menu.open').forEach(function (menu) {
+    if (!button || menu !== button.parentElement) {
+      menu.classList.remove('open');
+    }
+  });
+
+  if (button) {
+    // Свой список переключаем: повторное нажатие закрывает.
+    button.parentElement.classList.toggle('open');
+  }
+});
+
+// Тема: выбор человека помнится в браузере и переживает перезаход.
+// Хранится у него, а не в базе: это настройка вида одного рабочего места,
+// и синхронизировать её между людьми незачем.
+function switchTheme() {
+  var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(dark ? 'light' : 'dark');
+  try {
+    localStorage.setItem('ski-theme', dark ? 'light' : 'dark');
+  } catch (e) {
+    // Хранилище закрыто настройками браузера — тема просто не запомнится.
+    // Ронять из-за этого страницу нельзя.
+  }
+}
+
+function applyTheme(name) {
+  document.documentElement.setAttribute('data-theme', name);
+}
+
+// Escape закрывает список — привычка, которой ждут от всякого раскрытого.
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'Escape') {
+    document.querySelectorAll('header.top nav .menu.open').forEach(function (menu) {
+      menu.classList.remove('open');
+    });
+  }
+});
+</script>
 </body>
 </html>

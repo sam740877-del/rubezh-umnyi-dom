@@ -1,3 +1,6 @@
+/* Цвета живут переменными: тёмная тема подменяет их значения, а вся
+   вёрстка остаётся прежней. Правило одно — новый цвет заводится здесь,
+   иначе в тёмной теме он останется светлым и выпадет из общего вида. */
 :root {
   --bg: #f5f6f8;
   --panel: #ffffff;
@@ -8,6 +11,49 @@
   --ok: #1a7f45;
   --warn: #b26a00;
   --bad: #c02626;
+
+  /* Шапка и подложки значков: раньше стояли числами прямо в правилах,
+     и в тёмной теме остались бы светлыми пятнами. */
+  --head: #16324f;
+  --head-text: #cfe0f2;
+  --tint-ok: #e4f4ea;
+  --tint-warn: #fdf1dc;
+  --tint-bad: #fbe6e6;
+  --tint-neutral: #eef1f5;
+  --row-hover: #fbfcfe;
+
+  /* Подсветка открытого раздела. Отдельной парой, а не через --panel:
+     в тёмной теме панель тёмная, и тёмный текст на ней пропадал. */
+  --active-bg: #ffffff;
+  --active-text: #16324f;
+}
+
+/* Тёмная тема. Не инверсия светлой: чистый чёрный на белом тексте режет
+   глаз, поэтому подложка тёмно-синяя, а текст приглушённо-белый —
+   так же, как в шапке, которая тёмной была изначально. */
+[data-theme="dark"] {
+  --bg: #11161d;
+  --panel: #1a212b;
+  --line: #2b3542;
+  --text: #e4e8ee;
+  --muted: #94a1b2;
+  --accent: #6aa9e9;
+  --ok: #4cb87a;
+  --warn: #e0a44a;
+  --bad: #e46a6a;
+
+  --head: #0d1218;
+  --head-text: #b9c7d8;
+  --tint-ok: #17301f;
+  --tint-warn: #322613;
+  --tint-bad: #331b1b;
+  --tint-neutral: #232c38;
+  --row-hover: #1e2732;
+
+  /* В тёмной теме подсветка светлым фоном слепила бы: берём приглушённый
+     синий с белым текстом — заметно, но не режет глаз. */
+  --active-bg: #2f5d8f;
+  --active-text: #ffffff;
 }
 * { box-sizing: border-box; }
 body {
@@ -20,7 +66,7 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 header.top {
-  background: #16324f;
+  background: var(--head);
   color: #fff;
   padding: 7px 18px;
   display: flex;
@@ -49,7 +95,7 @@ header.top nav {
 }
 header.top nav::-webkit-scrollbar { display: none; }
 header.top nav a {
-  color: #cfe0f2;
+  color: var(--head-text);
   padding: 4px 9px;
   white-space: nowrap;
   border-radius: 5px;
@@ -63,11 +109,11 @@ header.top nav a:hover { color: #fff; background: rgba(255, 255, 255, .10); text
    его не отличить — на тёмной шапке разница между #cfe0f2 и #fff
    слишком мала, чтобы поймать её взглядом. */
 header.top nav a.active {
-  color: #16324f;
-  background: #fff;
+  color: var(--active-text);
+  background: var(--active-bg);
   font-weight: 600;
 }
-header.top nav a.active:hover { color: #16324f; background: #fff; }
+header.top nav a.active:hover { color: var(--active-text); background: var(--active-bg); }
 
 main { max-width: 1240px; margin: 0 auto; padding: 22px 20px 60px; }
 h1 { font-size: 23px; margin: 0 0 4px; }
@@ -101,18 +147,18 @@ tr:last-child td { border-bottom: none; }
 .badge {
   display: inline-block; padding: 2px 8px; border-radius: 20px;
   font-size: 12px; font-weight: 600; white-space: nowrap;
-  background: #eef1f5; color: #44506a;
+  background: var(--tint-neutral); color: var(--muted);
 }
-.badge.ok { background: #e4f4ea; color: var(--ok); }
-.badge.warn { background: #fdf1dc; color: var(--warn); }
-.badge.bad { background: #fbe6e6; color: var(--bad); }
-.badge.neutral { background: #eef1f5; color: #44506a; }
+.badge.ok { background: var(--tint-ok); color: var(--ok); }
+.badge.warn { background: var(--tint-warn); color: var(--warn); }
+.badge.bad { background: var(--tint-bad); color: var(--bad); }
+.badge.neutral { background: var(--tint-neutral); color: var(--muted); }
 
 form.inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 3px; }
 input, select, textarea {
-  font: inherit; padding: 7px 9px; border: 1px solid #c8ccd4; border-radius: 6px;
-  background: #fff; color: var(--text); min-width: 0; width: 100%;
+  font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--text); min-width: 0; width: 100%;
 }
 textarea { min-height: 62px; resize: vertical; }
 .field { margin-bottom: 10px; }
@@ -135,15 +181,15 @@ button, .btn {
   border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
 }
 button:hover, .btn:hover { filter: brightness(1.07); text-decoration: none; }
-button.ghost, .btn.ghost { background: #fff; color: var(--accent); }
-button.danger, .btn.danger { background: #fff; color: var(--bad); border-color: #e3b6b6; }
+button.ghost, .btn.ghost { background: var(--panel); color: var(--accent); }
+button.danger, .btn.danger { background: var(--panel); color: var(--bad); border-color: var(--bad); }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
 .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-weight: 500; }
-.flash.msg { background: #e4f4ea; color: #14603a; border: 1px solid #b6e0c6; }
-.flash.err { background: #fbe6e6; color: #8f1f1f; border: 1px solid #eebcbc; }
+.flash.msg { background: var(--tint-ok); color: var(--ok); border: 1px solid var(--ok); }
+.flash.err { background: var(--tint-bad); color: var(--bad); border: 1px solid var(--bad); }
 
-.bar { background: #e8ebf0; border-radius: 5px; height: 8px; overflow: hidden; min-width: 90px; }
+.bar { background: var(--tint-neutral); border-radius: 5px; height: 8px; overflow: hidden; min-width: 90px; }
 .bar > span { display: block; height: 100%; background: var(--ok); }
 .bar.warn > span { background: var(--warn); }
 .bar.bad > span { background: var(--bad); }
@@ -164,7 +210,7 @@ header.top .whoami {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: #cfe0f2;
+  color: var(--head-text);
   white-space: nowrap;
 }
 header.top .whoami .logout { color: #fff; text-decoration: underline; }
@@ -188,7 +234,7 @@ header.top .whoami .logout { color: #fff; text-decoration: underline; }
 .demo-hint {
   margin-top: 18px;
   padding: 12px 14px;
-  background: #f4f7fb;
+  background: var(--tint-neutral);
   border: 1px dashed #b9c9dc;
   border-radius: 8px;
   font-size: 13px;
@@ -201,8 +247,8 @@ header.top .whoami .logout { color: #fff; text-decoration: underline; }
    она читается как два разных логина. */
 .demo-hint td:first-child { white-space: nowrap; width: 1%; }
 .demo-hint code {
-  background: #fff;
-  border: 1px solid #d7e0ea;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 4px;
   padding: 1px 6px;
 }
@@ -213,7 +259,7 @@ header.top .whoami .logout { color: #fff; text-decoration: underline; }
 /* Значок уведомлений. Без непрочитанных выглядит как обычная ссылка —
    постоянно горящий значок перестают замечать через неделю. */
 header.top .whoami .bell {
-  color: #cfe0f2;
+  color: var(--head-text);
   padding: 3px 8px;
   border-radius: 5px;
   white-space: nowrap;
@@ -231,8 +277,8 @@ header.top .whoami .bell .count {
 
 /* Непрочитанная строка в ящике: слева полоса, а не заливка всей строки —
    заливка спорит с цветными значками внутри. */
-tr.unread td { background: #fbfcfe; }
-tr.unread td:first-child { box-shadow: inset 3px 0 0 #16324f; }
+tr.unread td { background: var(--row-hover); }
+tr.unread td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
 /* --------------------------------------------------------------------------
    Выпадающие списки в шапке
@@ -253,7 +299,7 @@ header.top nav .menu > button {
      в стрелке. Иначе глаз спотыкается о два разных вида одного ряда. */
   background: transparent;
   border: 0;
-  color: #cfe0f2;
+  color: var(--head-text);
   font: inherit;
   padding: 4px 9px;
   border-radius: 5px;
@@ -266,7 +312,7 @@ header.top nav .menu > button::after {
   opacity: .6;
 }
 header.top nav .menu:hover > button { color: #fff; background: rgba(255, 255, 255, .10); }
-header.top nav .menu.active > button { color: #16324f; background: #fff; font-weight: 600; }
+header.top nav .menu.active > button { color: var(--active-text); background: var(--active-bg); font-weight: 600; }
 
 header.top nav .menu .drop {
   display: none;
@@ -276,18 +322,22 @@ header.top nav .menu .drop {
   z-index: 20;
   min-width: 210px;
   padding: 6px;
-  background: #16324f;
+  background: var(--head);
   border: 1px solid rgba(255, 255, 255, .14);
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
 }
-header.top nav .menu:hover .drop { display: block; }
+/* Раскрывается и по наведению, и по НАЖАТИЮ. Только наведения мало:
+   на кнопку тянутся нажать, а на телефоне и планшете наведения нет
+   вовсе — там списки были бы недоступны совсем. */
+header.top nav .menu:hover .drop,
+header.top nav .menu.open .drop { display: block; }
 
 header.top nav .menu .drop a {
   display: block;
   padding: 7px 10px;
   border-radius: 5px;
-  color: #cfe0f2;
+  color: var(--head-text);
   white-space: nowrap;
 }
 header.top nav .menu .drop a:hover {
@@ -339,3 +389,41 @@ header.top nav .menu .drop a:hover {
      видно по тому, какие разделы доступны. */
   header.top .whoami > span { display: none; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Переключатель темы
+
+   Стоит рядом с подписью вошедшего, а не в ряду разделов: это не место,
+   куда ходят, а настройка вида, которую трогают раз в жизни.
+   -------------------------------------------------------------------------- */
+
+header.top .theme {
+  background: transparent;
+  border: 0;
+  color: var(--head-text);
+  font-size: 15px;
+  line-height: 1;
+  padding: 5px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+header.top .theme:hover { background: rgba(255, 255, 255, .12); }
+
+/* Показываем значок ПРОТИВОПОЛОЖНОЙ темы — то, во что переключимся.
+   Значок текущей темы человек и так видит вокруг себя. */
+.theme svg { display: block; }
+.theme .to-light { display: none; }
+[data-theme="dark"] .theme .to-dark { display: none; }
+[data-theme="dark"] .theme .to-light { display: block; }
+
+/* В тёмной теме белые панели светятся: приглушаем тени и подложки форм. */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+[data-theme="dark"] .flash.msg { background: var(--tint-ok); }
+[data-theme="dark"] .flash.err { background: var(--tint-bad); }
