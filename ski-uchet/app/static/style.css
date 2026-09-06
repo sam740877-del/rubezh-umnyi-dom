@@ -159,3 +159,30 @@ header.top .whoami .logout { color: #fff; text-decoration: underline; }
 .auth-box h1 { margin-top: 0; }
 .auth-box label { display: block; margin-top: 12px; }
 .auth-box input { width: 100%; }
+
+
+/* Подсказка демонстрационного режима. Намеренно неяркая: это служебная
+   врезка, а не призыв к действию — и она должна выглядеть временной. */
+.demo-hint {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: #f4f7fb;
+  border: 1px dashed #b9c9dc;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #44576b;
+}
+.demo-hint b { color: #16324f; }
+.demo-hint table { margin: 8px 0; border: 0; width: 100%; }
+.demo-hint td { padding: 3px 10px 3px 0; border: 0; }
+/* Пара «логин / пароль» не должна разрываться переносом: разорванная,
+   она читается как два разных логина. */
+.demo-hint td:first-child { white-space: nowrap; width: 1%; }
+.demo-hint code {
+  background: #fff;
+  border: 1px solid #d7e0ea;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.demo-hint p { margin: 8px 0 0; }
+.demo-hint .warn-line { color: #a2432c; }

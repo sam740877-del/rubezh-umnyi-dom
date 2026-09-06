@@ -235,12 +235,30 @@ def setup_submit(
     return response
 
 
+def _demo_users(db: Session) -> list[tuple[str, str]]:
+    """Демонстрационные записи, если они заведены.
+
+    Подсказку с паролями показываем только тогда, когда такие записи
+    действительно существуют: на рабочей установке её не будет вовсе.
+    """
+    from app.seed import DEMO_USERS
+
+    found = []
+    for login, title, _role in DEMO_USERS:
+        user = security.find_user(db, login)
+        # Пароль совпадает с логином — значит, запись так и осталась
+        # демонстрационной. Сменили пароль — подсказка про неё исчезает.
+        if user and user.is_active and security.verify_password(login, user.password_hash):
+            found.append((login, title))
+    return found
+
+
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request, next: str = "/", db: Session = Depends(get_session)):
     """Страница входа."""
     if security.is_first_run(db):
         return RedirectResponse("/setup", status_code=303)
-    return render(request, "login.html", next=next)
+    return render(request, "login.html", next=next, demo_users=_demo_users(db))
 
 
 @app.post("/login")

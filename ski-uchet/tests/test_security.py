@@ -41,18 +41,19 @@ from app.security import AccessDenied, Permission, Role
 from app.seed import seed_demo
 
 
+#: Пароль демонстрационных записей совпадает с логином (см. app/seed.py).
+DEMO_PASSWORD = {"admin": "admin", "keeper": "keeper", "chief": "chief"}
+
+
 @pytest.fixture()
 def users(session):
-    """Три роли, по одному человеку на каждую."""
+    """Три роли, по одному человеку на каждую.
+
+    Берём демонстрационные записи, которые заводит `seed_demo`: так сторож
+    заодно проверяет, что они действительно работают и что роли у них
+    расставлены верно.
+    """
     seed_demo(session)
-    for login, role in (
-        ("admin", Role.ADMIN),
-        ("keeper", Role.KEEPER),
-        ("chief", Role.CHIEF),
-    ):
-        security.create_user(
-            session, login, "test-password", role, require_permission=False
-        )
     session.commit()
     return session
 
@@ -61,7 +62,7 @@ def login_as(client: TestClient, login: str) -> None:
     """Войти под указанным логином."""
     response = client.post(
         "/login",
-        data={"login": login, "password": "test-password"},
+        data={"login": login, "password": DEMO_PASSWORD[login]},
         follow_redirects=False,
     )
     assert response.status_code == 303, f"вход под {login} не удался"
@@ -204,9 +205,9 @@ def test_password_is_not_stored_as_written(users) -> None:
     """В базе лежит не пароль, а его свёртка с солью."""
     user = users.query(User).filter(User.login == "admin").one()
 
-    assert "test-password" not in user.password_hash
+    assert "admin" not in user.password_hash
     assert user.password_hash.startswith("pbkdf2_sha256$")
-    assert security.verify_password("test-password", user.password_hash)
+    assert security.verify_password("admin", user.password_hash)
     assert not security.verify_password("другой", user.password_hash)
 
 
@@ -225,7 +226,7 @@ def test_disabled_user_cannot_log_in(users) -> None:
     with TestClient(app) as client:
         response = client.post(
             "/login",
-            data={"login": "keeper", "password": "test-password"},
+            data={"login": "keeper", "password": "keeper"},
             follow_redirects=False,
         )
 
@@ -269,7 +270,7 @@ def test_brute_force_is_slowed_down(users) -> None:
     assert security.login_lock_seconds_left("keeper") > 0
 
     with pytest.raises(security.SecurityError) as exc:
-        security.authenticate(users, "keeper", "test-password")
+        security.authenticate(users, "keeper", "keeper")
     assert "попыток" in str(exc.value)
 
     security.reset_login_failures("keeper")
@@ -279,7 +280,7 @@ def test_login_is_written_to_the_journal(users) -> None:
     """Вход и неудачная попытка попадают в журнал действий."""
     from app import audit
 
-    security.authenticate(users, "admin", "test-password")
+    security.authenticate(users, "admin", "admin")
     users.commit()
 
     actions = [e.action for e in audit.recent(users)]
@@ -291,3 +292,47 @@ def test_login_is_written_to_the_journal(users) -> None:
 
     actions = [e.action for e in audit.recent(users)]
     assert "Неудачная попытка входа" in actions
+
+
+# --------------------------------------------------------------------------
+# Демонстрационный режим
+# --------------------------------------------------------------------------
+
+
+def test_demo_hint_shows_only_with_demo_users(users) -> None:
+    """Подсказка с паролями видна, только пока записи демонстрационные.
+
+    Смысл в том, чтобы на рабочей установке её не было вовсе: подсказанный
+    логин с известным паролем — это инструкция для постороннего, а не
+    помощь своему (урок Л-14 «Заявок»).
+    """
+    with TestClient(app) as client:
+        response = client.get("/login")
+
+    assert response.status_code == 200
+    assert "Демонстрационный режим" in response.text
+    assert "admin" in response.text
+
+
+def test_demo_hint_disappears_after_password_change(users) -> None:
+    """Сменили пароль — подсказка про эту запись пропадает.
+
+    Проверяем не текст на экране, а поведение: подсказка привязана к тому,
+    совпадает ли пароль с логином, а не к какой-то отдельной пометке,
+    которую можно забыть снять.
+    """
+    session = users
+    admin_record = session.query(User).filter(User.login == "admin").one()
+    admin = security.snapshot(admin_record)
+
+    for login in ("admin", "keeper", "chief"):
+        record = session.query(User).filter(User.login == login).one()
+        security.set_password(session, record.id, "рабочий-пароль-2026", actor=admin)
+    session.commit()
+
+    with TestClient(app) as client:
+        response = client.get("/login")
+
+    assert "Демонстрационный режим" not in response.text, (
+        "подсказка с паролями осталась после их смены"
+    )

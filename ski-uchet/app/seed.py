@@ -310,3 +310,41 @@ def seed_demo(session: Session, today: date | None = None) -> None:
         )
     )
     session.flush()
+
+    _seed_demo_users(session)
+
+
+#: Демонстрационные учётные записи. Пароль совпадает с логином намеренно —
+#: их показывают заказчику, и запоминать что-то сложнее незачем.
+#:
+#: **Только для демонстрации.** Пароли здесь короче обычного минимума
+#: (8 знаков), поэтому заводятся в обход `validate_password`. На рабочей
+#: установке демо-данные не наливают, а если налили — пароли меняют:
+#: страница входа об этом прямо предупреждает.
+DEMO_USERS = (
+    ("admin", "Администратор (демо)", "admin"),
+    ("keeper", "Кладовщик (демо)", "keeper"),
+    ("chief", "Главный инженер (демо)", "chief"),
+)
+
+
+def _seed_demo_users(session: Session) -> None:
+    """Завести демонстрационные учётные записи, если их ещё нет."""
+    from app import security
+    from app.models import User
+
+    for login, title, role in DEMO_USERS:
+        if security.find_user(session, login) is not None:
+            continue
+        session.add(
+            User(
+                login=login,
+                # Минимум длины обходим сознательно: это демо-пароли,
+                # а не рабочие. Через create_user такой пароль не прошёл бы.
+                password_hash=security.hash_password(login),
+                role=role,
+                display_name=title,
+                is_active=True,
+            )
+        )
+    session.flush()

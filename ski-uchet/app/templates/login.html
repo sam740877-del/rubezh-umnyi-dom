@@ -8,15 +8,35 @@
   <form method="post" action="/login">
     <input type="hidden" name="next" value="{{ next }}">
     <label>Логин</label>
-    <input name="login" autofocus autocomplete="username" required>
+    <input name="login" autofocus autocomplete="username" required
+           value="{{ 'admin' if demo_users }}">
     <label>Пароль</label>
-    <input type="password" name="password" autocomplete="current-password" required>
+    <input type="password" name="password" autocomplete="current-password" required
+           value="{{ 'admin' if demo_users }}">
     <button type="submit" style="width:100%; margin-top:14px">Войти</button>
   </form>
 
+  {% if demo_users %}
+  {# Подсказка показывается, только когда демонстрационные записи и правда
+     заведены: на рабочей установке её не будет вовсе, а вместе с ней
+     не будет и соблазна оставить пароль «admin». #}
+  <div class="demo-hint">
+    <b>Демонстрационный режим</b>
+    <table>
+      {% for login, title in demo_users %}
+      <tr><td><code>{{ login }}</code> / <code>{{ login }}</code></td><td>{{ title }}</td></tr>
+      {% endfor %}
+    </table>
+    <p>У ролей разные права: кладовщик выдаёт приборы, но не согласует заявки;
+    главный инженер согласует заявки, но не ведёт склад.</p>
+    <p class="warn-line">Перед настоящей работой эти записи нужно удалить
+    или сменить им пароли.</p>
+  </div>
+  {% else %}
   <p class="muted" style="margin-top:16px; font-size:13px">
     Логин и пароль выдаёт администратор. Инженерам строительного контроля
     учётная запись здесь не нужна — они работают через бота.
   </p>
+  {% endif %}
 </div>
 {% endblock %}

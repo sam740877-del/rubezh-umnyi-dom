@@ -18,21 +18,13 @@ def client(session):
     Вход делается настоящим: через страницу `/login`, а не подкладыванием
     печенья, чтобы дымовые тесты заодно стерегли саму процедуру входа.
     """
-    seed_demo(session)
-    security.create_user(
-        session,
-        "tester",
-        "test-password",
-        security.Role.ADMIN,
-        display_name="Тестовый администратор",
-        require_permission=False,
-    )
+    seed_demo(session)  # заодно заводит демонстрационные учётные записи
     session.commit()
 
     with TestClient(app) as test_client:
         response = test_client.post(
             "/login",
-            data={"login": "tester", "password": "test-password"},
+            data={"login": "admin", "password": "admin"},
             follow_redirects=False,
         )
         assert response.status_code == 303, "вход не удался — дальше проверять нечего"
@@ -43,13 +35,6 @@ def client(session):
 def anon_client(session):
     """Клиент без входа — для проверки самой заставы."""
     seed_demo(session)
-    security.create_user(
-        session,
-        "tester",
-        "test-password",
-        security.Role.ADMIN,
-        require_permission=False,
-    )
     session.commit()
     with TestClient(app) as test_client:
         yield test_client
