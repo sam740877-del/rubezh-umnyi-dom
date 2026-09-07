@@ -12,7 +12,28 @@ from sqlalchemy.orm import Session, sessionmaker
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "ski.db"
 
-DATABASE_URL = os.environ.get("SKI_DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
+def _normalize(url: str) -> str:
+    """Привести адрес базы к тому виду, который понимает SQLAlchemy 2.0.
+
+    Render (и Heroku до него) выдают адрес вида `postgres://…`. Это
+    старое написание: SQLAlchemy 2.0 его не знает и падает с
+    «Can't load plugin: sqlalchemy.dialects:postgres».
+
+    Чинить это правкой значения в панели нельзя — Render переписывает
+    свою переменную при каждом создании базы. Значит, приводить должны мы.
+    """
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        # Без указания драйвера SQLAlchemy ищет psycopg2, которого у нас
+        # нет: стоит psycopg 3. Говорим прямо, чем подключаться.
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
+
+
+DATABASE_URL = _normalize(
+    os.environ.get("SKI_DATABASE_URL", "").strip() or f"sqlite:///{DEFAULT_DB_PATH}"
+)
 
 def _engine_options() -> dict:
     """Настройки движка. Для базы в памяти — особые.
@@ -43,7 +64,14 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):  # noqa: ANN001
-    """Включаем контроль внешних ключей — SQLite по умолчанию его игнорирует."""
+    """Включаем контроль внешних ключей — SQLite по умолчанию его игнорирует.
+
+    Только для SQLite: `PRAGMA` — его команда, и на PostgreSQL она
+    уронила бы КАЖДОЕ подключение, то есть всю систему целиком.
+    PostgreSQL блюдёт внешние ключи сам, и просить его об этом не нужно.
+    """
+    if not DATABASE_URL.startswith("sqlite"):
+        return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()

@@ -8,21 +8,15 @@ r"""Миграция 7: настройки.
 """
 from __future__ import annotations
 
-from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.migrations import table_exists
 
 TITLE = "Настройки"
 
 TABLES = ("settings",)
 
 
-def _exists(session: Session, table: str) -> bool:
-    """Есть ли такая таблица в базе."""
-    row = session.execute(
-        text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name"),
-        {"name": table},
-    ).fetchone()
-    return row is not None
 
 
 def upgrade(session: Session) -> None:
@@ -30,7 +24,7 @@ def upgrade(session: Session) -> None:
 
     Границу транзакции держит вызывающий.
     """
-    missing = [name for name in TABLES if not _exists(session, name)]
+    missing = [name for name in TABLES if not table_exists(session, name)]
     if not missing:
         return
 

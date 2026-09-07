@@ -6,3 +6,8 @@ python-multipart==0.0.20
 pytest==8.3.4
 httpx==0.28.1
 openpyxl==3.1.5
+
+# Драйвер PostgreSQL. Нужен только там, где база не SQLite:
+# на стенде Render и на сервере конторы (этап 2). Сборка «binary»
+# идёт готовыми колёсами — без неё Render требует компилятор.
+psycopg[binary]==3.2.3

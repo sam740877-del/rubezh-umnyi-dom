@@ -33,10 +33,25 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import NamedTuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.orm import Session
 
-from app.migrations import (
+
+def table_exists(session: Session, table: str) -> bool:
+    """Есть ли такая таблица в базе — на любой базе.
+
+    Раньше каждая миграция спрашивала это у `sqlite_master`, и все шесть
+    упали бы на PostgreSQL с «relation sqlite_master does not exist»:
+    стенд не поднялся бы вовсе. Найдено при переносе стенда на общую
+    базу 07.09.2026, до развёртывания.
+
+    `inspect` спрашивает у той базы, к которой подключились, на её языке:
+    у SQLite — `sqlite_master`, у PostgreSQL — системный каталог.
+    """
+    return table in set(inspect(session.connection()).get_table_names())
+
+
+from app.migrations import (  # noqa: E402  (после `table_exists`: миграции её зовут)
     m001_status_constraints,
     m002_audit_log,
     m003_users,

@@ -140,3 +140,72 @@ def test_migration_numbers_are_unique_and_ordered() -> None:
 # Показать такого сторожа красным на сломанном правиле не удалось —
 # по Р5.7 свода БПО он тогда удаляется, а не дописывается. Сама ветка
 # оставлена в коде: она перенесена от донора вместе с уроком R-64.
+
+
+def test_migrations_do_not_ask_sqlite_directly() -> None:
+    r"""Миграции не спрашивают у SQLite напрямую.
+
+    `sqlite_master` — таблица SQLite. Шесть миграций спрашивали у неё,
+    есть ли таблица, и на PostgreSQL упали бы с «relation sqlite_master
+    does not exist»: стенд не поднялся бы вовсе. Найдено при переносе
+    стенда на общую базу 07.09.2026 — до развёртывания, чтением кода.
+
+    Спрашивать надо через `table_exists` из пакета миграций: он
+    обращается к той базе, к которой подключились, на её языке.
+
+    Исключение — `m001`: там ветка `dialect.name == "sqlite"` СОЗНАТЕЛЬНА,
+    SQLite не умеет `ALTER TABLE ADD CONSTRAINT`, и таблица пересоздаётся.
+    Такое ветвление разрешено; запрещено молча считать базу SQLite.
+    """
+    from pathlib import Path as _Path
+
+    папка = _Path(__file__).resolve().parent.parent / "app" / "migrations"
+    виноватые = []
+    for файл in sorted(папка.glob("m0*.py")):
+        текст = файл.read_text(encoding="utf-8")
+        # Пояснения не в счёт — ищем в коде.
+        код = "\n".join(
+            строка for строка in текст.splitlines()
+            if not строка.lstrip().startswith("#")
+        )
+        if "sqlite_master" in код and "dialect" not in код:
+            виноватые.append(файл.name)
+
+    assert not виноватые, (
+        "миграции спрашивают у sqlite_master без проверки диалекта — "
+        f"на PostgreSQL они упадут: {виноватые}"
+    )
+
+
+def test_database_url_is_normalized() -> None:
+    r"""Адрес базы от Render приводится к тому, что понимает SQLAlchemy.
+
+    Render выдаёт `postgres://…` — старое написание, которое SQLAlchemy
+    2.0 не знает: «Can't load plugin: sqlalchemy.dialects:postgres».
+    Править значение руками в панели нельзя: Render переписывает свою
+    переменную при каждом создании базы.
+    """
+    from app.database import _normalize
+
+    assert _normalize("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    # Без указания драйвера SQLAlchemy ищет psycopg2, которого у нас нет.
+    assert _normalize("postgresql://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert _normalize("postgresql+psycopg://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert _normalize("sqlite:///ski.db") == "sqlite:///ski.db"
+
+
+def test_sqlite_pragma_is_not_sent_to_other_databases() -> None:
+    r"""`PRAGMA` уходит только в SQLite.
+
+    Обработчик подключения выполнял `PRAGMA foreign_keys=ON` на КАЖДОМ
+    соединении. На PostgreSQL это уронило бы каждое подключение — то
+    есть систему целиком. PostgreSQL блюдёт внешние ключи сам.
+    """
+    import inspect as _inspect
+
+    from app import database
+
+    исходник = _inspect.getsource(database._set_sqlite_pragma)
+    assert "startswith(\"sqlite\")" in исходник or "sqlite" in исходник.split("PRAGMA")[0], (
+        "PRAGMA выполняется без проверки, что база — SQLite"
+    )
