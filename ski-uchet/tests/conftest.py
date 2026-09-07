@@ -53,6 +53,7 @@ from app.models import Base  # noqa: E402
     "test_attachments": "core",
     "test_importer": "core",
     "test_bot": "core",
+    "test_max_api": "core",
     "test_backup": "core",
     "test_web": "web",
     "test_security": "web",
