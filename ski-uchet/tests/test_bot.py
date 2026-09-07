@@ -555,3 +555,120 @@ def test_undelivered_stays_pending_when_nobody_is_linked(session, world) -> None
 
     assert delivered == 0
     assert len(notifications.pending_for_bot(session)) == 1
+
+
+class TestУказательСобытий:
+    r"""Сторож указателя: перезапуск не обрабатывает события заново.
+
+    Как это сломалось в жизни (07.09.2026)
+    ---------------------------------------
+
+    Указатель на последнее обработанное событие жил в памяти процесса:
+    `marker = None` при каждом запуске. MAX хранит события несколько
+    минут и отдаёт всё, что новее указателя, — а указателя после
+    перезапуска не было.
+
+    Второй запуск бота получил те же события заново и обработал их
+    второй раз: привязка мастера записалась ДВАЖДЫ, и в чате задвоился
+    набор кнопок. Нашлось живой проверкой, не тестами.
+
+    На кнопках это косметика. На заявке — два одинаковых перемещения
+    одного прибора: главный инженер согласует оба, и прибор «переедет»
+    дважды. А перезапуск на сервере конторы — не редкость: обновление,
+    перезагрузка, сбой сети.
+    """
+
+    def test_marker_survives_restart(self, session) -> None:
+        """Указатель, сохранённый одним запуском, читается следующим."""
+        from app import settings
+
+        settings.save_bot_marker(session, 37228)
+        session.commit()
+
+        assert settings.bot_marker(session) == 37228
+
+    def test_no_marker_at_first_start(self, session) -> None:
+        """Первый запуск начинает с пустого: брать неоткуда."""
+        from app import settings
+
+        assert settings.bot_marker(session) is None
+
+    def test_broken_marker_does_not_break_start(self, session) -> None:
+        """Чепуха в записи — начинаем сначала, а не падаем.
+
+        Правило донора (БПО): испорченное руками значение превращается
+        в умолчание. Упасть на старте — значит не отвечать мастерам
+        вовсе, и это хуже, чем повторить несколько событий.
+        """
+        from app import settings
+        from app.models import Setting
+
+        for мусор in ("месяц", "", "  ", "-5", "0"):
+            row = session.get(Setting, settings.BOT_MARKER)
+            if row is None:
+                row = Setting(key=settings.BOT_MARKER)
+                session.add(row)
+            row.value = мусор
+            session.flush()
+
+            assert settings.bot_marker(session) is None, f"на {мусор!r}"
+
+    def test_marker_is_not_shown_as_a_setting(self, session) -> None:
+        """Служебная отметка не появляется на экране настроек.
+
+        Человеку там нечего делать: он не знает, что такое указатель
+        событий, а увидев поле — поправит его.
+        """
+        from app import settings
+
+        settings.save_bot_marker(session, 37228)
+        session.commit()
+
+        ключи = [s["key"] for s in settings.all_settings(session)]
+        assert settings.BOT_MARKER not in ключи
+
+    def test_marker_does_not_flood_the_log(self, session) -> None:
+        """Сохранение указателя не пишется в журнал.
+
+        Указатель меняется на каждой порции событий. Попади он в журнал —
+        настоящие действия утонули бы в служебных строках.
+        """
+        from sqlalchemy import func, select
+
+        from app import settings
+        from app.models import AuditLog
+
+        было = session.scalar(select(func.count()).select_from(AuditLog))
+        settings.save_bot_marker(session, 37228)
+        settings.save_bot_marker(session, 37229)
+        session.commit()
+
+        assert session.scalar(select(func.count()).select_from(AuditLog)) == было
+
+    def test_repeated_event_does_not_double_the_link(self, session, world) -> None:
+        """Главное: то же событие дважды не заводит вторую привязку.
+
+        Сторож на сам дефект, а не только на его причину. Пусть указатель
+        снова потеряется — задвоиться привязка не должна.
+        """
+        from sqlalchemy import select
+
+        from app.models import BotInvite, BotLink
+
+        invite = BotInvite(code="ABC123", site_id=world["mine"].id)
+        session.add(invite)
+        session.flush()
+
+        событие = event("ABC123")
+        bot.handle(session, событие)
+        session.flush()
+        bot.handle(session, событие)
+        session.flush()
+
+        живые = session.scalars(
+            select(BotLink).where(
+                BotLink.max_user_id == событие.max_user_id,
+                BotLink.is_active.is_(True),
+            )
+        ).all()
+        assert len(живые) == 1, f"привязок стало {len(живые)}"

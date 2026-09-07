@@ -139,8 +139,19 @@ def cmd_bot(args) -> None:
         )
         return
 
+    from app import settings
+
     client = max_api.MaxClient()
-    marker = None
+
+    # Указатель берётся из базы, а не начинается с пустого: иначе после
+    # каждого перезапуска MAX отдаёт недавние события заново, и бот
+    # обрабатывает их второй раз. 07.09.2026 так задвоилась привязка
+    # мастера; на заявке это означало бы два одинаковых перемещения.
+    with session_scope() as session:
+        marker = settings.bot_marker(session)
+    if marker:
+        print(f"Продолжаю с события {marker}.")
+
     print("Бот запущен. Остановить — Ctrl+C.")
 
     while True:
@@ -148,6 +159,10 @@ def cmd_bot(args) -> None:
             with session_scope() as session:
                 handled, marker = bot.poll_once(session, client, marker)
                 delivered = bot.deliver_pending(session, client)
+                # Сохраняем в ТОЙ ЖЕ транзакции, что и обработку событий:
+                # порознь их разорвал бы сбой между ними, и события,
+                # уже отработанные, пришли бы снова.
+                settings.save_bot_marker(session, marker)
             if handled or delivered:
                 print(f"обработано событий: {handled}, доставлено сообщений: {delivered}")
         except KeyboardInterrupt:
