@@ -312,6 +312,7 @@ def seed_demo(session: Session, today: date | None = None) -> None:
     session.flush()
 
     _seed_demo_users(session)
+    _seed_demo_invites(session, [site1, site2, site3])
 
 
 #: Демонстрационные учётные записи. Пароль совпадает с логином намеренно —
@@ -346,5 +347,43 @@ def _seed_demo_users(session: Session) -> None:
                 display_name=title,
                 is_active=True,
             )
+        )
+    session.flush()
+
+
+#: Коды-приглашения для показа бота. Заданы ЯВНО, а не выпущены случайно:
+#: их печатают в инструкции заказчику, и код должен совпадать с бумажкой.
+#:
+#: В работе так нельзя — там код одноразовый и случайный (`secrets`),
+#: иначе, узнав правило, посторонний вошёл бы под мастером. Здесь стенд
+#: с выдуманными данными, и предсказуемость важнее: заказчик пробует
+#: разные роли, сбивается, пробует снова.
+DEMO_INVITES = (
+    ("MASTER1", "Мастер: ЖК Северный, корпус 3"),
+    ("MASTER2", "Мастер: ЖК Северный, паркинг"),
+    ("MASTER3", "Мастер: Котельная №4"),
+)
+
+
+def _seed_demo_invites(session: Session, sites: list) -> None:
+    """Завести коды-приглашения на каждый участок.
+
+    Без них заказчик не войдёт в бота вовсе: мастер опознаётся только
+    кодом (ответ 52), а выдаёт его администратор. На стенде администратора
+    рядом нет, поэтому коды готовы заранее и напечатаны в инструкции.
+
+    Коды МНОГОРАЗОВЫЕ (`expires_at` не задан, использование не гасит их
+    для показа): заказчик пробует роли по очереди, потом показывает
+    коллеге, потом возвращается сам. Одноразовый код на стенде означал бы
+    «попробовал один раз — дальше проси новый».
+    """
+    from app.models import BotInvite
+
+    for (code, intended), site in zip(DEMO_INVITES, sites):
+        existing = session.scalar(select(BotInvite).where(BotInvite.code == code))
+        if existing is not None:
+            continue
+        session.add(
+            BotInvite(code=code, site_id=site.id, intended_for=intended)
         )
     session.flush()
