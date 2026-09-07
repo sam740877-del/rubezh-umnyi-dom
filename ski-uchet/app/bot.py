@@ -82,6 +82,12 @@ class Reply:
 
     text: str
     buttons: list[list[dict[str, str]]] = field(default_factory=list)
+    #: Уведомления, которые считаются доставленными, КОГДА этот ответ уйдёт.
+    #:
+    #: Гасить их сразу при сборке ответа нельзя: упади отправка (связь на
+    #: объекте плохая), и человек уже никогда их не увидит — а среди них
+    #: напоминание о заканчивающейся поверке. Приёмка 07.09.2026.
+    deliver_ids: list[int] = field(default_factory=list)
 
 
 class BotError(Exception):
@@ -234,6 +240,23 @@ def _set_draft(link: BotLink, data: dict | None) -> None:
     link.draft = json.dumps(data, ensure_ascii=False) if data else None
 
 
+#: Слова, которыми человек просит выйти. Приравнены к кнопке «Отмена».
+#:
+#: Заведены по приёмке 07.09.2026. Выйти из разговора можно было только
+#: кнопкой или тайными «меню» / «/start», которых мастеру никто не
+#: называл. Написанное «отмена» уходило в дело: на шаге неисправности
+#: становилось описанием поломки, и прибор уезжал в ремонт.
+#:
+#: Считаются ТОЛЬКО набранными от руки: у кнопки своя команда в payload,
+#: и совпадение текста кнопки со словом выхода ничего не значит.
+CANCEL_WORDS = frozenset(
+    {
+        "отмена", "отменить", "отмени", "назад", "стоп", "хватит",
+        "выйти", "выход", "не надо", "нет", "^",
+    }
+)
+
+
 def _reset(link: BotLink) -> None:
     """Вернуть человека в главное меню."""
     link.state = "idle"
@@ -243,6 +266,31 @@ def _reset(link: BotLink) -> None:
 # --------------------------------------------------------------------------
 # Экраны
 # --------------------------------------------------------------------------
+
+
+#: Надписи кнопок → команда. Человек, который ПЕРЕПЕЧАТАЛ то, что
+#: написано на кнопке, должен быть понят: он сделал ровно то, что видел.
+#:
+#: Живая проверка 07.09.2026: набранное «Вернуть неисправным» получало
+#: «Не понял. Выберите действие» — а это дословная надпись кнопки,
+#: которая была у человека перед глазами. Понимать её должен бот, а не
+#: человек догадываться, что надпись и команда — разные вещи.
+MENU_WORDS = {
+    "мой комплект": "kit",
+    "комплект": "kit",
+    "приборы": "kit",
+    "заявка на перемещение": "request",
+    "заявка": "request",
+    "перемещение": "request",
+    "сдать на склад": "return_ok",
+    "сдать": "return_ok",
+    "склад": "return_ok",
+    "вернуть неисправным": "return_broken",
+    "неисправность": "return_broken",
+    "сломался": "return_broken",
+    "сообщения": "inbox",
+    "сообщение": "inbox",
+}
 
 
 def main_menu(link: BotLink) -> list[list[dict[str, str]]]:
@@ -324,15 +372,28 @@ def kit_screen(session: Session, link: BotLink, today: date | None = None) -> Re
 
     lines = [f"Комплект участка «{link.site.name}»:", ""]
     for item in instruments:
-        state = services.verification_state(item, today)
-        mark = {
-            "expired": "просрочена",
-            "expiring": f"истекает через {state.days_left} дн.",
-            "missing": "нет данных о поверке",
-        }.get(state.code, "поверка в порядке")
-        lines.append(f"{item.inventory_no} — {item.name}\n   {mark}")
+        lines.append(
+            f"{item.inventory_no} — {item.name}\n   "
+            f"{_verification_line(item, today)}"
+        )
 
     return Reply("\n".join(lines), main_menu(link))
+
+
+def _verification_line(instrument: Instrument, today: date) -> str:
+    """Что с поверкой, одной строкой для человека.
+
+    Одним местом: то же нужно и в комплекте, и на карточке прибора,
+    найденного по набранному номеру. Разъехавшиеся формулировки —
+    начало того, что в одном экране прибор «в порядке», а в другом
+    «истекает».
+    """
+    state = services.verification_state(instrument, today)
+    return {
+        "expired": "поверка просрочена",
+        "expiring": f"поверка истекает через {state.days_left} дн.",
+        "missing": "нет данных о поверке",
+    }.get(state.code, "поверка в порядке")
 
 
 def instrument_buttons(
@@ -357,6 +418,44 @@ def instrument_buttons(
         nav.append(button("← назад", f"{action}_page:{page - 1}"))
     if start + PAGE_SIZE < len(instruments):
         nav.append(button("дальше →", f"{action}_page:{page + 1}"))
+    if nav:
+        rows.append(nav)
+    rows.append([button("Отмена", "cancel")])
+    return rows
+
+
+def _target_sites(session: Session, link: BotLink) -> list[Site]:
+    """Куда мастер может попросить перевести прибор.
+
+    Свой участок не предлагаем: перемещать на себя же незачем.
+    """
+    return list(
+        session.scalars(
+            select(Site)
+            .where(Site.status == "active", Site.id != link.site_id)
+            .order_by(Site.name)
+        ).all()
+    )
+
+
+def site_buttons(sites: list[Site], page: int = 0) -> list[list[dict[str, str]]]:
+    """Кнопки выбора участка — с листанием, как у приборов.
+
+    Раньше список обрезался восемью без «дальше» и без предупреждения:
+    у конторы с четырнадцатью участками девятый и следующие были
+    недостижимы, и мастер не понимал, почему нужного участка нет
+    (приёмка 07.09.2026).
+    """
+    start = page * PAGE_SIZE
+    chunk = sites[start : start + PAGE_SIZE]
+
+    rows = [[button(site.name[:30], f"site:{site.id}")] for site in chunk]
+
+    nav = []
+    if page > 0:
+        nav.append(button("← назад", f"site_page:{page - 1}"))
+    if start + PAGE_SIZE < len(sites):
+        nav.append(button("дальше →", f"site_page:{page + 1}"))
     if nav:
         rows.append(nav)
     rows.append([button("Отмена", "cancel")])
@@ -407,11 +506,9 @@ def inbox_screen(session: Session, link: BotLink, show_all: bool = False) -> Rep
         buttons.append([button("Показать все", "inbox_all")])
     buttons.extend(main_menu(link))
 
-    # Отмечаем доставленными только показанное: непоказанное человек
-    # ещё не видел, и гасить его нельзя.
-    notifications.mark_delivered(session, [item.id for item in shown], "bot")
-
-    return Reply("\n".join(lines), buttons)
+    # Гасим не здесь, а КОГДА ответ уйдёт: список едет вместе с ответом.
+    # Отмечаем только показанное — непоказанное человек ещё не видел.
+    return Reply("\n".join(lines), buttons, [item.id for item in shown])
 
 
 # --------------------------------------------------------------------------
@@ -454,7 +551,12 @@ def handle(session: Session, update: Update, today: date | None = None) -> Reply
     if command.lower() in ("/start", "начать", "меню", "/menu"):
         _reset(link)
         return greeting(session, link, today)
-    if command == "cancel":
+    if command == "cancel" or (not update.is_button and command.lower() in CANCEL_WORDS):
+        # Слово «отмена» РАВНО кнопке «Отмена». Приёмка 07.09.2026: мастер
+        # на шаге неисправности написал «отмена», слово ушло в описание,
+        # и тахеометр уехал в ремонт с неисправностью «отмена». Человек
+        # на объекте пишет то, что просит выйти, а не ищет кнопку выше
+        # в ленте — и он прав, а не бот.
         _reset(link)
         return Reply("Отменено.", main_menu(link))
 
@@ -512,6 +614,10 @@ def _handle_command(
     session: Session, link: BotLink, command: str, today: date
 ) -> Reply | None:
     """Команда из главного меню."""
+    # Набранное словами приводим к команде: человек перепечатал надпись
+    # кнопки, и это не повод отвечать «не понял».
+    command = MENU_WORDS.get(command.strip().lower(), command)
+
     if command == "kit":
         return kit_screen(session, link, today)
     if command == "inbox":
@@ -522,12 +628,47 @@ def _handle_command(
     if command in ("request", "return_ok", "return_broken"):
         return _start_instrument_pick(session, link, command)
 
+    # Действие с УЖЕ выбранным прибором: карточка, которую человек
+    # получил, набрав инвентарный номер. Шаг выбора пропускаем — прибор
+    # он уже назвал, спрашивать снова значит не слушать.
+    if command.startswith(("request:", "return_ok:", "return_broken:")):
+        action, _, _ = command.partition(":")
+        instrument = _find_instrument(session, link, command, action)
+        if instrument is None:
+            return Reply("Такого прибора на вашем участке нет.", main_menu(link))
+        link.state = {
+            "request": "request_pick_instrument",
+            "return_ok": "return_pick_instrument",
+            "return_broken": "return_pick_instrument",
+        }[action]
+        _set_draft(link, {"action": action})
+        return _picked_instrument(session, link, command, {"action": action}, today)
+
     if command.startswith(("request_page:", "return_ok_page:", "return_broken_page:")):
         action, _, page = command.partition("_page:")
         instruments = _site_instruments(session, link.site_id) if link.site_id else []
         return Reply(
             "Выберите прибор:", instrument_buttons(instruments, action, int(page or 0))
         )
+
+    # Набран инвентарный номер прибора — показываем, что с ним можно.
+    # Мастер видит номер на наклейке и пишет его: это первое, что делает
+    # человек с прибором в руках. Отвечать ему «не понял» — значит
+    # требовать, чтобы он думал как программа (живая проверка 07.09.2026).
+    if link.site_id:
+        instrument = _find_instrument(session, link, command)
+        if instrument is not None:
+            return Reply(
+                f"{instrument.inventory_no} — {instrument.name}.\n"
+                f"{_verification_line(instrument, today)}\n\n"
+                "Что делаем?",
+                [
+                    [button("Заявка на перемещение", f"request:{instrument.id}")],
+                    [button("Сдать на склад", f"return_ok:{instrument.id}")],
+                    [button("Вернуть неисправным", f"return_broken:{instrument.id}")],
+                    [button("Отмена", "cancel")],
+                ],
+            )
 
     return Reply("Не понял. Выберите действие:", main_menu(link))
 
@@ -564,26 +705,37 @@ def _continue_dialog(
         return _picked_instrument(session, link, command, draft, today)
     if link.state == "request_pick_site":
         return _picked_site(session, link, command, draft, today)
+    # Двум последним шагам нужно знать, НАЖАЛИ кнопку или НАБРАЛИ текст:
+    # они принимают свободный ввод, и нажатие старой кнопки из ленты
+    # уходило в дело — причиной заявки или описанием неисправности.
     if link.state == "request_reason":
-        return _entered_reason(session, link, command, draft, today)
+        return _entered_reason(session, link, command, update, draft, today)
     if link.state == "return_defect":
-        return _entered_defect(session, link, command, draft, today)
+        return _entered_defect(session, link, command, update, draft, today)
 
     _reset(link)
     return Reply("Начнём сначала.", main_menu(link))
 
 
 def _find_instrument(
-    session: Session, link: BotLink, command: str
+    session: Session, link: BotLink, command: str, action: str | None = None
 ) -> Instrument | None:
     """Прибор по нажатой кнопке или по набранному инвентарному номеру.
 
     Номером искать разрешено нарочно: кнопки удобны, пока приборов
     немного, а мастеру с сорока позициями быстрее набрать номер, который
     он и так видит на наклейке.
+
+    `action` — то действие, которого бот сейчас ждёт. Кнопка ЧУЖОГО
+    действия к делу не принимается: в мессенджере старые кнопки остаются
+    на экране и нажимаются. Приёмка 07.09.2026: в шаге «сдать на склад»
+    нажатие старой `site:1` из прежней заявки сдавало на склад прибор
+    с номером 1 — совсем не тот, что человек имел в виду.
     """
     if ":" in command:
-        _, _, raw_id = command.partition(":")
+        prefix, _, raw_id = command.partition(":")
+        if action is not None and prefix != action:
+            return None
         if raw_id.isdigit():
             found = session.get(Instrument, int(raw_id))
             # Чужой прибор не отдаём даже по прямому обращению: мастер
@@ -617,7 +769,7 @@ def _picked_instrument(
             "Выберите прибор:", instrument_buttons(instruments, prefix, int(page or 0))
         )
 
-    instrument = _find_instrument(session, link, command)
+    instrument = _find_instrument(session, link, command, action)
     if instrument is None:
         instruments = _site_instruments(session, link.site_id)
         return Reply(
@@ -632,16 +784,13 @@ def _picked_instrument(
     if action == "request":
         link.state = "request_pick_site"
         _set_draft(link, draft)
-        sites = session.scalars(
-            select(Site).where(Site.status == "active", Site.id != link.site_id).order_by(Site.name)
-        ).all()
+        sites = _target_sites(session, link)
         if not sites:
             _reset(link)
             return Reply("Других действующих участков нет.", main_menu(link))
-        rows = [[button(site.name[:30], f"site:{site.id}")] for site in sites[:PAGE_SIZE]]
-        rows.append([button("Отмена", "cancel")])
         return Reply(
-            f"{instrument.inventory_no} {instrument.name}.\nКуда перемещаем?", rows
+            f"{instrument.inventory_no} {instrument.name}.\nКуда перемещаем?",
+            site_buttons(sites),
         )
 
     if action == "return_broken":
@@ -650,7 +799,11 @@ def _picked_instrument(
         return Reply(
             f"{instrument.inventory_no} {instrument.name}.\n"
             "Опишите, что с прибором не так — без этого кладовщик не поймёт, "
-            "что чинить."
+            "что чинить.",
+            # Кнопка обязательна: шаг просит свободный текст, и без неё
+            # выйти было нечем. Приёмка 07.09.2026: мастер писал «отмена»,
+            # слово становилось описанием поломки, прибор уезжал в ремонт.
+            [[button("Отмена", "cancel")]],
         )
 
     # Сдача исправного: объяснений не требуем, это обычная операция (ответ 54).
@@ -661,11 +814,30 @@ def _picked_site(
     session: Session, link: BotLink, command: str, draft: dict, today: date
 ) -> Reply:
     """Участок назначения выбран — спрашиваем причину."""
-    if not command.startswith("site:"):
-        return Reply("Выберите участок кнопкой.")
+    sites = _target_sites(session, link)
+
+    # Листание списка участков.
+    if command.startswith("site_page:"):
+        _, _, raw_page = command.partition(":")
+        страница = int(raw_page) if raw_page.isdigit() else 0
+        return Reply("Куда перемещаем?", site_buttons(sites, страница))
+
+    if not command.startswith("site:") or not command.partition(":")[2].isdigit():
+        # Кнопки ПОВТОРЯЕМ, а не отсылаем человека искать их выше в ленте.
+        # Приёмка 07.09.2026: ответ «Выберите участок кнопкой» приходил
+        # без единой кнопки — на телефоне это тупик.
+        return Reply(
+            "Выберите участок кнопкой из списка ниже.", site_buttons(sites)
+        )
+
     _, _, raw_id = command.partition(":")
-    if not raw_id.isdigit():
-        return Reply("Выберите участок кнопкой.")
+    # Участок должен быть из ТОГО ЖЕ списка, что показан. Иначе поддельная
+    # команда `site:999` принималась, и ошибка всплывала только после
+    # того, как мастер набрал причину, — работа впустую.
+    if int(raw_id) not in {site.id for site in sites}:
+        return Reply(
+            "Такого участка нет в списке. Выберите кнопкой:", site_buttons(sites)
+        )
 
     draft["to_site_id"] = int(raw_id)
     link.state = "request_reason"
@@ -678,9 +850,22 @@ def _picked_site(
 
 
 def _entered_reason(
-    session: Session, link: BotLink, command: str, draft: dict, today: date
+    session: Session, link: BotLink, command: str, update: Update, draft: dict, today: date
 ) -> Reply:
     """Причина введена — подаём заявку."""
+    if update.is_button and command != "no_reason":
+        # Нажата ЧУЖАЯ кнопка: старая из ленты или та же участковая
+        # второй раз (двойное нажатие — обычное дело на плохой связи).
+        # Приёмка 07.09.2026: такое нажатие уходило причиной заявки —
+        # главный инженер получал заявку с обоснованием «site:2»,
+        # а перепо́дать её мастер уже не мог: по прибору есть заявка
+        # на согласовании. Причину ПИШУТ, а не нажимают.
+        return Reply(
+            "Причину нужно написать словами — коротко, своими.\n"
+            "Или нажмите «Без причины».",
+            [[button("Без причины", "no_reason")], [button("Отмена", "cancel")]],
+        )
+
     reason = "" if command == "no_reason" else command.strip()
 
     try:
@@ -705,14 +890,26 @@ def _entered_reason(
 
 
 def _entered_defect(
-    session: Session, link: BotLink, command: str, draft: dict, today: date
+    session: Session, link: BotLink, command: str, update: Update, draft: dict, today: date
 ) -> Reply:
     """Описание неисправности введено — оформляем возврат."""
+    if update.is_button:
+        # Нажатая кнопка — не описание поломки. Приёмка 07.09.2026:
+        # повторное нажатие кнопки прибора отправляло его в ремонт
+        # с неисправностью «return_broken:1», а старая «Мой комплект» —
+        # с неисправностью «kit» (три буквы, порог ниже её пропускал).
+        return Reply(
+            "Опишите неисправность словами — что именно с прибором не так.\n"
+            "Например: «сбит уровень после падения».",
+            [[button("Отмена", "cancel")]],
+        )
+
     description = command.strip()
     if len(description) < 3:
         return Reply(
             "Опишите неисправность словами — этого мало. "
-            "Например: «сбит уровень после падения»."
+            "Например: «сбит уровень после падения».",
+            [[button("Отмена", "cancel")]],
         )
 
     instrument = session.get(Instrument, draft.get("instrument_id", 0))
@@ -801,6 +998,9 @@ def poll_once(session: Session, client, marker: int | None = None) -> tuple[int,
                 buttons=reply.buttons or None,
             )
             handled += 1
+            # Ответ ДОШЁЛ — только теперь сообщения считаются доставленными.
+            if reply.deliver_ids:
+                notifications.mark_delivered(session, reply.deliver_ids, "bot")
         except Exception as exc:
             # Ответ не ушёл — записываем и идём дальше. Событие уже
             # обработано: заявка подана, прибор возвращён. Повторять

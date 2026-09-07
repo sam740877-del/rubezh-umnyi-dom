@@ -815,6 +815,21 @@ def approve_change_request(
         object_type="change_request",
         object_id=request.id,
     )
+    # Тому, кто подал заявку, — тоже. Приёмка 07.09.2026: он узнавал об
+    # отказе, но не о согласии, и прибор просто исчезал из его комплекта
+    # без объяснения. Человек, ждущий ответа, должен его получить.
+    if request.from_site_id and request.from_site_id != request.to_site_id:
+        notifications.notify_site(
+            session,
+            request.from_site_id,
+            "request_decided",
+            f"Заявка №{request.id} согласована: прибор "
+            f"{request.instrument.inventory_no} {request.instrument.name} "
+            f"передан на участок «{request.to_site.name}»."
+            + (f" Комментарий: {comment}" if comment else ""),
+            object_type="change_request",
+            object_id=request.id,
+        )
     return request
 
 

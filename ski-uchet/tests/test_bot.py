@@ -403,7 +403,10 @@ def test_shown_messages_are_marked_delivered_but_not_read(session, world) -> Non
     notifications.notify_site(session, world["mine"].id, "verification_due", "Проверка")
     session.commit()
 
-    bot.handle(session, event(payload="inbox"), TODAY)
+    # Через полный путь, а не через `handle`: гашение происходит, КОГДА
+    # ответ ушёл, — иначе упавшая отправка стирала бы непрочитанное.
+    client = FakeClient([event(payload="inbox")])
+    bot.poll_once(session, client)
     session.commit()
 
     entry = session.query(bot.Notification).one()
@@ -418,11 +421,33 @@ def test_unshown_messages_stay_pending(session, world) -> None:
         notifications.notify_site(session, world["mine"].id, "verification_due", f"С {i}")
     session.commit()
 
-    bot.handle(session, event(payload="inbox"), TODAY)
+    client = FakeClient([event(payload="inbox")])
+    bot.poll_once(session, client)
     session.commit()
 
     pending = notifications.pending_for_bot(session)
     assert len(pending) == 10 - bot.RECENT_NOTIFICATIONS
+
+
+def test_messages_stay_pending_when_the_answer_does_not_arrive(session, world) -> None:
+    """Ответ не дошёл — сообщения ждут дальше, а не пропадают.
+
+    Приёмка 07.09.2026: экран гасил сообщения при сборке ответа, до
+    отправки. Упади она — связь на объекте плохая, — и человек уже
+    никогда бы их не увидел. А среди них напоминание о заканчивающейся
+    поверке: пропустив его, мастер выйдет на объект с просроченным
+    прибором, и его замеры не примут.
+    """
+    link_master(session, world)
+    notifications.notify_site(session, world["mine"].id, "verification_due", "Поверка!")
+    session.commit()
+
+    client = FakeClient([event(payload="inbox")], fail_on_send=True)
+    bot.poll_once(session, client)
+    session.commit()
+
+    pending = notifications.pending_for_bot(session)
+    assert len(pending) == 1, "сообщение погашено, хотя ответ не дошёл"
 
 
 def test_office_role_gets_messages_only(session, world) -> None:
@@ -672,3 +697,311 @@ class TestУказательСобытий:
             )
         ).all()
         assert len(живые) == 1, f"привязок стало {len(живые)}"
+
+
+class TestТупикиРазговора:
+    r"""Сторожа против логических тупиков: из любого шага есть выход.
+
+    Откуда взялись
+    ---------------
+
+    Приёмка 07.09.2026. Владелец делал такую же для бота школы массажа
+    и знал по опыту: тупики есть всегда. Нашлось четыре, и главный из
+    них портил не разговор, а имущество.
+
+    Общая причина у всех одна: бот не различал НАЖАТУЮ кнопку и
+    НАБРАННЫЙ текст (`update.payload or update.text`), а на шагах
+    свободного ввода принимал за ответ что угодно. В мессенджере старые
+    кнопки остаются на экране и нажимаются — и уходили в дело.
+
+    Почему это дороже, чем кажется
+    -------------------------------
+
+    Мастер работает на объекте, с телефона, часто в перчатках, связь
+    рвётся. Он не листает ленту вверх в поисках кнопки «Отмена» — он
+    пишет «отмена», как написал бы человеку. И он прав, а бот был нет.
+    """
+
+    def test_cancel_word_works_like_the_button(self, session, world) -> None:
+        """«Отмена» словом равна «Отмене» кнопкой — из любого состояния.
+
+        Главный дефект приёмки: на шаге «опишите неисправность» слово
+        «отмена» становилось ОПИСАНИЕМ ПОЛОМКИ. Тахеометр уезжал
+        в ремонт с неисправностью «отмена», кладовщик получал
+        уведомление, а вернуть прибор мастер сам не мог.
+        """
+        link_master(session, world)
+        прибор = world["own"]
+
+        for слово in ("отмена", "Отмена", "НАЗАД", "стоп", "не надо"):
+            bot.handle(session, event(payload="return_broken"))
+            bot.handle(session, event(payload=f"return_broken:{прибор.id}"))
+            ответ = reply_to(session, event(слово))
+            session.flush()
+
+            assert "Отменено" in ответ.text, f"{слово!r} не вышло из разговора"
+            assert прибор.status == "in_use", f"{слово!r} отправило прибор в ремонт"
+            assert прибор.current_site_id == world["mine"].id
+
+    def test_free_text_steps_always_offer_a_way_out(self, session, world) -> None:
+        """На шагах свободного ввода всегда есть кнопка выхода.
+
+        Сообщение без единой кнопки — тупик: человеку нечего нажать,
+        а что написать, чтобы выйти, ему никто не сказал.
+        """
+        link_master(session, world)
+
+        bot.handle(session, event(payload="request"))
+        bot.handle(session, event(payload=f"request:{world['own'].id}"))
+        ответ = reply_to(session, event(payload=f"site:{world['other'].id}"))
+        assert ответ.buttons, "шаг причины остался без кнопок"
+
+        bot.handle(session, event(payload="cancel"))
+        session.flush()
+
+        bot.handle(session, event(payload="return_broken"))
+        ответ = reply_to(session, event(payload=f"return_broken:{world['own'].id}"))
+        assert ответ.buttons, "шаг неисправности остался без кнопок"
+
+    def test_stray_text_keeps_the_site_buttons(self, session, world) -> None:
+        """Посторонний текст на выборе участка не оставляет без кнопок.
+
+        Было: «Выберите участок кнопкой.» — и ни одной кнопки. Кнопки
+        остались выше в ленте, и на телефоне это тупик.
+        """
+        link_master(session, world)
+        bot.handle(session, event(payload="request"))
+        bot.handle(session, event(payload=f"request:{world['own'].id}"))
+
+        ответ = reply_to(session, event("привет"))
+
+        assert ответ.buttons, "ответ без кнопок — человеку нечего нажать"
+        payloads = [b["payload"] for row in ответ.buttons for b in row]
+        assert any(p.startswith("site:") for p in payloads), "участки не показаны"
+        assert "cancel" in payloads, "нет выхода"
+
+    def test_button_is_not_taken_for_a_reason(self, session, world) -> None:
+        """Нажатие кнопки не становится причиной заявки.
+
+        Двойное нажатие участка — обычное дело на плохой связи. Второе
+        уходило причиной: главный инженер получал заявку с обоснованием
+        «site:2», а перепо́дать её мастер уже не мог — по прибору есть
+        заявка на согласовании. Запертый мастер ждал чужого решения.
+        """
+        from sqlalchemy import func, select
+
+        from app.models import ChangeRequest
+
+        link_master(session, world)
+        bot.handle(session, event(payload="request"))
+        bot.handle(session, event(payload=f"request:{world['own'].id}"))
+        bot.handle(session, event(payload=f"site:{world['other'].id}"))
+
+        было = session.scalar(select(func.count()).select_from(ChangeRequest))
+        ответ = reply_to(session, event(payload=f"site:{world['other'].id}"))
+        session.flush()
+        стало = session.scalar(select(func.count()).select_from(ChangeRequest))
+
+        assert стало == было, "нажатие кнопки подало заявку"
+        assert "написать словами" in ответ.text
+        assert ответ.buttons, "и снова без выхода"
+
+    def test_button_is_not_taken_for_a_defect(self, session, world) -> None:
+        """Нажатие кнопки не становится описанием неисправности.
+
+        Старая «Мой комплект» давала неисправность «kit» — ровно три
+        буквы, порог «слишком коротко» её пропускал.
+        """
+        link_master(session, world)
+        прибор = world["own"]
+        bot.handle(session, event(payload="return_broken"))
+        bot.handle(session, event(payload=f"return_broken:{прибор.id}"))
+
+        ответ = reply_to(session, event(payload="kit"))
+        session.flush()
+
+        assert прибор.status == "in_use", "прибор уехал в ремонт от нажатия кнопки"
+        assert "словами" in ответ.text
+        assert ответ.buttons
+
+    def test_stale_button_from_another_dialog_is_refused(self, session, world) -> None:
+        """Кнопка чужого действия не принимается к делу.
+
+        В шаге «сдать на склад» нажатие старой `site:1` из прежней
+        заявки сдавало на склад прибор с номером 1 — совсем не тот,
+        что человек имел в виду, и без всякого подтверждения.
+        """
+        link_master(session, world)
+        чужой = world["foreign"]
+        bot.handle(session, event(payload="return_ok"))
+
+        reply_to(session, event(payload=f"site:{чужой.id}"))
+        session.flush()
+
+        assert чужой.status != "warehouse", "чужая кнопка сдала прибор на склад"
+
+    def test_sites_beyond_the_first_page_are_reachable(self, session, world) -> None:
+        """Участков больше восьми — до остальных можно долистать.
+
+        Список обрезался восемью без «дальше» и без предупреждения:
+        у конторы с четырнадцатью участками девятый и следующие были
+        недостижимы, и мастер не понимал, почему нужного участка нет.
+        """
+        from app.models import Site
+
+        link_master(session, world)
+        for i in range(12):
+            session.add(
+                Site(
+                    name=f"Объект №{i + 10}",
+                    contract_id=world["other"].contract_id,
+                    status="active",
+                )
+            )
+        session.flush()
+
+        bot.handle(session, event(payload="request"))
+        ответ = reply_to(session, event(payload=f"request:{world['own'].id}"))
+        подписи = [b["text"] for row in ответ.buttons for b in row]
+        assert any("дальше" in p for p in подписи), "до дальних участков не добраться"
+
+        вторая = reply_to(session, event(payload="site_page:1"))
+        payloads = [b["payload"] for row in вторая.buttons for b in row]
+        assert any(p.startswith("site:") for p in payloads), "вторая страница пуста"
+        assert any("назад" in b["text"] for row in вторая.buttons for b in row)
+
+    def test_made_up_site_is_refused_before_the_reason(self, session, world) -> None:
+        """Несуществующий участок отбивается сразу, а не после причины.
+
+        Было: `site:999` принимался, и ошибка всплывала только после
+        того, как мастер набрал обоснование, — работа впустую.
+        """
+        link_master(session, world)
+        bot.handle(session, event(payload="request"))
+        bot.handle(session, event(payload=f"request:{world['own'].id}"))
+
+        ответ = reply_to(session, event(payload="site:999999"))
+
+        assert "нет в списке" in ответ.text
+        assert ответ.buttons, "и снова без выхода"
+
+    def test_requester_learns_the_request_was_approved(self, session, world) -> None:
+        """Подавший заявку узнаёт о согласии, а не только об отказе.
+
+        Было: уведомлялся только участок-получатель. Тот, кто просил,
+        ждал ответа, а прибор просто исчезал из его комплекта.
+        """
+        from app import services
+
+        link_master(session, world)
+        заявка = services.create_change_request(
+            session,
+            world["own"].id,
+            world["other"].id,
+            "Сидоров С.С.",
+            reason="нужен на соседнем объекте",
+            requested_on=TODAY,
+        )
+        session.flush()
+        services.approve_change_request(
+            session, заявка.id, "Главный инженер", decided_on=TODAY
+        )
+        session.flush()
+
+        свои = [
+            n for n in notifications.pending_for_bot(session)
+            if n.site_id == world["mine"].id and n.kind == "request_decided"
+        ]
+        assert свои, "подавший не узнал, что заявку согласовали"
+
+    def test_typed_button_label_is_understood(self, session, world) -> None:
+        """Набранная надпись кнопки понимается как нажатие.
+
+        Живая проверка 07.09.2026 в MAX: набранное «Вернуть неисправным»
+        получило «Не понял. Выберите действие» — а это дословная надпись
+        кнопки, которая была у человека перед глазами.
+
+        Мастер на объекте видит кнопку и перепечатывает её. Он сделал
+        ровно то, что видел; догадываться, что надпись и команда — разные
+        вещи, должен не он.
+        """
+        link_master(session, world)
+
+        for надпись, ожидается in (
+            ("Мой комплект", "Комплект участка"),
+            ("мой комплект", "Комплект участка"),
+            ("Заявка на перемещение", "Выберите прибор"),
+            ("Вернуть неисправным", "Выберите прибор"),
+            ("Сдать на склад", "Выберите прибор"),
+        ):
+            bot.handle(session, event(payload="cancel"))
+            session.flush()
+            ответ = reply_to(session, event(надпись))
+
+            assert "Не понял" not in ответ.text, f"{надпись!r} не понято"
+            assert ожидается in ответ.text, f"{надпись!r} → {ответ.text[:40]!r}"
+
+    def test_nonsense_still_gets_the_menu(self, session, world) -> None:
+        """Совсем непонятное по-прежнему возвращает меню, а не молчание.
+
+        Терпимость к надписям не должна превратиться в угадывание:
+        на бессмыслицу человек обязан получить кнопки, чтобы понять,
+        что вообще можно делать.
+        """
+        link_master(session, world)
+
+        ответ = reply_to(session, event("асдфгх"))
+
+        assert "Не понял" in ответ.text
+        assert ответ.buttons, "не понял — и не показал, что можно"
+
+    def test_typed_inventory_number_opens_the_instrument(self, session, world) -> None:
+        """Набранный инвентарный номер открывает карточку прибора.
+
+        Живая проверка 07.09.2026: мастер набрал «СКИ-021» — номер,
+        который видит на наклейке прибора в руках, — и получил
+        «Не понял. Выберите действие».
+
+        Прочитать номер и написать его — первое, что делает человек
+        с прибором в руках. Требовать вместо этого пройти меню и найти
+        прибор в списке из сорока — значит требовать, чтобы он думал
+        как программа.
+        """
+        link_master(session, world)
+
+        ответ = reply_to(session, event("ИНВ-001"))
+
+        assert "Не понял" not in ответ.text
+        assert "ИНВ-001" in ответ.text
+        assert "поверка" in ответ.text, "не сказано главное — что с поверкой"
+        payloads = [b["payload"] for row in ответ.buttons for b in row]
+        assert any(p.startswith("request:") for p in payloads)
+        assert "cancel" in payloads
+
+    def test_action_from_the_card_skips_the_picker(self, session, world) -> None:
+        """Действие с карточки не переспрашивает про прибор.
+
+        Прибор человек уже назвал. Спрашивать снова — значит не слушать.
+        """
+        link_master(session, world)
+        прибор = world["own"]
+        bot.handle(session, event("ИНВ-001"))
+
+        ответ = reply_to(session, event(payload=f"request:{прибор.id}"))
+
+        assert "Куда перемещаем" in ответ.text, "переспросил про прибор"
+        payloads = [b["payload"] for row in ответ.buttons for b in row]
+        assert any(p.startswith("site:") for p in payloads)
+
+    def test_foreign_number_is_still_refused(self, session, world) -> None:
+        """Чужой прибор по номеру не открывается.
+
+        Терпимость к набранному номеру не должна открыть чужой участок:
+        мастер видит только свой (ответ 35).
+        """
+        link_master(session, world)
+
+        ответ = reply_to(session, event("ИНВ-999"))
+
+        assert "ИНВ-999" not in ответ.text, "показан прибор чужого участка"
+        assert "Не понял" in ответ.text
