@@ -40,11 +40,31 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import httpx
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 BASE_URL = "https://platform-api2.max.ru"
+
+#: Набор доверенных сертификатов.
+#:
+#: MAX выпускает свой сертификат у РОССИЙСКОГО удостоверяющего центра
+#: («Russian Trusted Sub CA», Минцифры). В обычных наборах корневых
+#: сертификатов его нет, и connection к платформе падает с
+#: «CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate».
+#:
+#: Это не поломка и не наша ошибка: сертификат настоящий, просто
+#: подписан центром, которого браузер не знает. Лечится добавлением
+#: корневого сертификата Минцифры — он лежит в `certs/bundle.pem`
+#: рядом с приложением и собирается `tools/update_certs.py`.
+#:
+#: Проверять сертификаты ВООБЩЕ (`verify=False`) — не выход: тогда
+#: любой, кто встанет между нами и MAX, сможет читать и подменять
+#: сообщения, а бот носит акты приёмки и решения по заявкам.
+CERT_BUNDLE = BASE_DIR / "certs" / "bundle.pem"
 
 #: Сколько секунд держать запрос обновлений открытым. Предел MAX — 90.
 POLL_TIMEOUT = 30
@@ -173,8 +193,11 @@ class MaxClient:
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         timeout = kwargs.pop("timeout", 30)
+        # Свой набор сертификатов, если он собран: иначе MAX не проходит
+        # проверку — его центр Минцифры браузеру незнаком.
+        проверка = str(CERT_BUNDLE) if CERT_BUNDLE.exists() else True
         try:
-            with httpx.Client(timeout=timeout) as client:
+            with httpx.Client(timeout=timeout, verify=проверка) as client:
                 response = client.request(
                     method, f"{self._base_url}{path}", headers=self._headers(), **kwargs
                 )
