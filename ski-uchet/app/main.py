@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import csv
 import io
+import os
+import threading
 from datetime import date, datetime
 from pathlib import Path
 
@@ -71,7 +73,82 @@ BASE_DIR = Path(__file__).resolve().parent
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
-    yield
+    поток = _start_bot_if_asked()
+    try:
+        yield
+    finally:
+        if поток is not None:
+            _BOT_STOP.set()
+
+
+#: Просьба боту остановиться. Взводится, когда сервер гасят.
+_BOT_STOP = threading.Event()
+
+
+def _start_bot_if_asked():
+    r"""Поднять бота рядом с сайтом, если так велено окружением.
+
+    Зачем это здесь, а не отдельной службой
+    ----------------------------------------
+
+    Правильнее — отдельной службой: опрос MAX держит соединение открытым
+    десятками секунд, и мешать этим обработке страниц незачем. Так это
+    и сделано на сервере конторы, и так `manage.py bot` работает у себя.
+
+    Но на бесплатном тарифе Render фоновых служб НЕТ: развёртывание
+    08.09.2026 отклонило `type: worker` с «service type is not available
+    for this plan». А стенд нужен именно затем, чтобы заказчик увидел
+    связку «нажал в боте — изменилось на сайте»: без бота показывать
+    нечего.
+
+    Поэтому здесь — потоком рядом с сайтом. Опрос ждёт ответа MAX,
+    не занимая процессор, и страницам не мешает. Включается переменной
+    `SKI_BOT_INLINE=1` и живёт только на стенде: на сервере конторы бот
+    останется отдельной службой.
+
+    Возвращает поток или `None`, если бота не просили.
+    """
+    if os.environ.get("SKI_BOT_INLINE", "").strip() not in ("1", "true", "yes"):
+        return None
+
+    from app import max_api
+
+    if not max_api.is_configured():
+        print("Бот не запущен: не задан MAX_BOT_TOKEN.")
+        return None
+
+    поток = threading.Thread(target=_bot_loop, name="max-bot", daemon=True)
+    поток.start()
+    print("Бот MAX запущен рядом с сайтом.")
+    return поток
+
+
+def _bot_loop() -> None:
+    """Опрос MAX до остановки сервера.
+
+    Тело — то же, что в `manage.py bot`: сбой сети не роняет опрос,
+    указатель событий хранится в базе, чтобы перезапуск не обрабатывал
+    их заново.
+    """
+    from app import bot, max_api, settings
+    from app.database import session_scope
+
+    client = max_api.MaxClient()
+    with session_scope() as session:
+        marker = settings.bot_marker(session)
+
+    while not _BOT_STOP.is_set():
+        try:
+            with session_scope() as session:
+                handled, marker = bot.poll_once(session, client, marker)
+                bot.deliver_pending(session, client)
+                settings.save_bot_marker(session, marker)
+        except Exception as exc:
+            # Опрос не должен умирать от одной ошибки сети: пауза и снова.
+            # Иначе бот замолкает до перезапуска, а узнают об этом мастера
+            # на объекте.
+            print(f"Сбой опроса бота: {exc}. Повтор через 15 с.")
+            _BOT_STOP.wait(15)
 
 
 app = FastAPI(title="Учёт СКИ", docs_url="/api/docs", redoc_url=None, lifespan=lifespan)

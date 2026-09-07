@@ -1005,3 +1005,76 @@ class TestТупикиРазговора:
 
         assert "ИНВ-999" not in ответ.text, "показан прибор чужого участка"
         assert "Не понял" in ответ.text
+
+
+class TestБотРядомССайтом:
+    r"""Сторож на бота, поднятого потоком внутри веб-службы.
+
+    Зачем так вообще
+    -----------------
+
+    Правильнее — отдельной службой: опрос MAX держит соединение открытым
+    десятками секунд. Так и сделано на сервере конторы.
+
+    Но на бесплатном тарифе Render фоновых служб НЕТ: развёртывание
+    08.09.2026 отклонило `type: worker` с «service type is not available
+    for this plan». А стенд нужен затем, чтобы заказчик увидел связку
+    «нажал в боте — изменилось на сайте»: без бота показывать нечего.
+
+    Что стережём: включается ТОЛЬКО по просьбе и ТОЛЬКО с токеном.
+    Случайно поднятый бот на сервере конторы означал бы двух ботов
+    на одном токене — они отбирали бы события друг у друга, и половина
+    сообщений мастера пропадала бы.
+    """
+
+    def test_bot_does_not_start_unless_asked(self, monkeypatch) -> None:
+        """Без `SKI_BOT_INLINE` бота нет.
+
+        На сервере конторы бот — отдельная служба. Поднимись он ещё и
+        внутри сайта, вышло бы два бота на одном токене.
+        """
+        from app import main
+
+        monkeypatch.delenv("SKI_BOT_INLINE", raising=False)
+        monkeypatch.setenv("MAX_BOT_TOKEN", "проверочный-токен")
+
+        assert main._start_bot_if_asked() is None
+
+    def test_bot_does_not_start_without_a_token(self, monkeypatch, capsys) -> None:
+        """С просьбой, но без токена — отказ словами, а не падение.
+
+        Забытая переменная на площадке не должна ронять САЙТ: заказчик
+        пришёл смотреть систему, и «бот не настроен» лучше, чем пустой
+        экран вместо всего.
+        """
+        from app import main
+
+        monkeypatch.setenv("SKI_BOT_INLINE", "1")
+        monkeypatch.delenv("MAX_BOT_TOKEN", raising=False)
+
+        assert main._start_bot_if_asked() is None
+        assert "MAX_BOT_TOKEN" in capsys.readouterr().out
+
+    def test_render_yaml_has_no_worker(self) -> None:
+        """В описании развёртывания нет фоновой службы.
+
+        Бесплатный тариф Render их не поддерживает: `type: worker`
+        отклоняется целиком, и бот на стенде не появится вовсе.
+        """
+        from pathlib import Path as _Path
+
+        корень = _Path(__file__).resolve().parent.parent
+        файлы = [корень / "render.yaml", корень.parent / "render.yaml"]
+        for файл in файлы:
+            if not файл.exists():
+                continue
+            текст = файл.read_text(encoding="utf-8")
+            код = "\n".join(
+                с for с in текст.splitlines() if not с.lstrip().startswith("#")
+            )
+            assert "type: worker" not in код, (
+                f"{файл.name}: фоновая служба недоступна на бесплатном тарифе"
+            )
+            assert "SKI_BOT_INLINE" in код, (
+                f"{файл.name}: бот не включён — стенд останется без бота"
+            )
