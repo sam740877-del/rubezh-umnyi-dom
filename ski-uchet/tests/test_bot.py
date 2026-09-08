@@ -1078,3 +1078,92 @@ class TestБотРядомССайтом:
             assert "SKI_BOT_INLINE" in код, (
                 f"{файл.name}: бот не включён — стенд останется без бота"
             )
+
+
+class TestКодыПриглашений:
+    r"""Сторож: код узнаётся по БАЗЕ, а не по виду.
+
+    Как это сломалось на показе (08.09.2026)
+    -----------------------------------------
+
+    Проверка `_looks_like_code` требовала шесть ШЕСТНАДЦАТЕРИЧНЫХ знаков —
+    под `secrets.token_hex(3)`, которым коды выпускаются. А демо-коды для
+    заказчика заданы словами: `MASTER1`, `MASTER2`, `MASTER3`. В них есть
+    S, T, R — и собственную проверку они не прошли.
+
+    Бот отвечал «отправьте код-приглашение» на код-приглашение. Заказчик
+    не вошёл бы в бота вовсе, а инструкция врала бы ему в лицо.
+
+    Урок: угадывание по виду ломается, как только вид меняется. База
+    знает точно — у неё и надо спрашивать.
+    """
+
+    def test_administrator_code_is_accepted(self, session, world) -> None:
+        """Код, заданный словами, впускает так же, как случайный."""
+        for код in ("MASTER1", "СКЛАД-7", "ivanov", "A1"):
+            session.add(
+                BotInvite(code=код.upper(), site_id=world["mine"].id, intended_for="Мастер")
+            )
+            session.flush()
+
+            ответ = reply_to(session, event(код, max_user_id=f"max-{код}"))
+
+            assert "код-приглашение" not in ответ.text, f"{код!r} не принят за код"
+            assert world["mine"].name in ответ.text, f"{код!r} не впустил на участок"
+
+    def test_code_is_case_insensitive(self, session, world) -> None:
+        """Регистр не важен: код диктуют голосом и набирают как придётся."""
+        session.add(BotInvite(code="MASTER1", site_id=world["mine"].id))
+        session.flush()
+
+        ответ = reply_to(session, event("master1"))
+
+        assert world["mine"].name in ответ.text
+
+    def test_stranger_still_learns_nothing(self, session, world) -> None:
+        """Постороннему по-прежнему не видно ничего.
+
+        Терпимость к виду кода не должна превратиться в подсказку.
+        Слово «привет» — не код, и человек не должен узнать даже того,
+        что коды тут вообще бывают.
+        """
+        ответ = reply_to(session, event("привет"))
+
+        assert "код-приглашение" in ответ.text
+        assert world["mine"].name not in ответ.text
+        assert "ИНВ-001" not in ответ.text
+
+    def test_used_code_says_so(self, session, world) -> None:
+        """Использованный код отвечает по делу, а не «не понял».
+
+        Человек ввёл именно код — значит, ему надо сказать, что с кодом
+        не так, а не притворяться, что он написал бессмыслицу.
+        """
+        session.add(BotInvite(code="MASTER1", site_id=world["mine"].id))
+        session.flush()
+        bot.handle(session, event("MASTER1", max_user_id="max-первый"))
+        session.flush()
+
+        ответ = reply_to(session, event("MASTER1", max_user_id="max-второй"))
+
+        assert "уже использован" in ответ.text
+
+    def test_demo_codes_match_the_instruction(self) -> None:
+        """Коды в демо-данных те же, что напечатаны в инструкции.
+
+        Их печатают на бумажке для заказчика: разойдись они — человек
+        набирает то, что видит, и не попадает никуда.
+        """
+        from pathlib import Path as _Path
+
+        from app.seed import DEMO_INVITES
+
+        инструкция = (
+            _Path(__file__).resolve().parent.parent / "docs" / "PROVERKA_STENDA.md"
+        )
+        if not инструкция.exists():
+            return
+
+        текст = инструкция.read_text(encoding="utf-8")
+        for код, _ in DEMO_INVITES:
+            assert код in текст, f"код {код} есть в данных, но не в инструкции"

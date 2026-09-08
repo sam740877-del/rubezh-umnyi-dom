@@ -539,7 +539,7 @@ def handle(session: Session, update: Update, today: date | None = None) -> Reply
     # Код от уже привязанного человека — это перевод на другой участок.
     # Проверяем до остальных команд: иначе код уходил бы в «не понял»,
     # и перевести мастера было бы нечем.
-    if link.state == "idle" and _looks_like_code(command):
+    if link.state == "idle" and _looks_like_code(session, command):
         try:
             moved = redeem_invite(
                 session, command, update.max_user_id, update.chat_id, update.display_name
@@ -568,15 +568,31 @@ def handle(session: Session, update: Update, today: date | None = None) -> Reply
 
 
 
-def _looks_like_code(text: str) -> bool:
-    """Похоже ли это на код-приглашение.
+def _looks_like_code(session: Session, text: str) -> bool:
+    """Есть ли в базе приглашение с таким кодом.
 
-    Код выдаётся `secrets.token_hex(3)` — шесть знаков из 0-9 и A-F.
-    Узкая проверка нарочно: широкая («шесть букв или цифр») принимала
-    за код обычные слова.
+    Спрашиваем БАЗУ, а не гадаем по виду. Прежняя проверка требовала
+    шесть шестнадцатеричных знаков — под `secrets.token_hex(3)`, которым
+    коды выпускаются. Но администратор вправе задать код руками, и
+    08.09.2026 на этом встал показ: демо-коды `MASTER1`, `MASTER2`,
+    `MASTER3` собственную проверку не прошли (в них есть S, T, R),
+    и бот отвечал «отправьте код-приглашение» на код-приглашение.
+
+    Почему нельзя просто «шесть букв или цифр»: слово «привет» тоже
+    шестибуквенное, и посторонний получал бы «код не найден» вместо
+    приветствия — а заодно узнавал бы, что коды тут вообще есть.
+    Вопрос к базе отвечает точно и на то, и на другое.
+
+    Использованные и просроченные коды сюда тоже попадают: человек
+    ввёл именно код, и сказать ему надо «код уже использован», а не
+    «не понял» — разбирается с этим `redeem_invite`.
     """
     cleaned = (text or "").strip().upper()
-    return len(cleaned) == 6 and all(c in "0123456789ABCDEF" for c in cleaned)
+    if not cleaned or len(cleaned) > 64:
+        return False
+    return session.scalar(
+        select(BotInvite.id).where(func.upper(BotInvite.code) == cleaned)
+    ) is not None
 
 
 def _handle_stranger(session: Session, update: Update, command: str) -> Reply:
@@ -591,7 +607,7 @@ def _handle_stranger(session: Session, update: Update, command: str) -> Reply:
     # `secrets.token_hex(3)`. Проверять надо именно это, а не «шесть
     # букв или цифр»: обычное слово «привет» тоже шестибуквенное, и
     # человек получал бы «код не найден» вместо приветствия.
-    if _looks_like_code(cleaned):
+    if _looks_like_code(session, cleaned):
         try:
             link = redeem_invite(
                 session,
