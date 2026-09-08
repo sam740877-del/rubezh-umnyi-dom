@@ -143,36 +143,45 @@ def test_migration_numbers_are_unique_and_ordered() -> None:
 
 
 def test_migrations_do_not_ask_sqlite_directly() -> None:
-    r"""Миграции не спрашивают у SQLite напрямую.
+    r"""Ни одна ФУНКЦИЯ не спрашивает у `sqlite_master` без проверки базы.
 
-    `sqlite_master` — таблица SQLite. Шесть миграций спрашивали у неё,
-    есть ли таблица, и на PostgreSQL упали бы с «relation sqlite_master
-    does not exist»: стенд не поднялся бы вовсе. Найдено при переносе
-    стенда на общую базу 07.09.2026 — до развёртывания, чтением кода.
+    `sqlite_master` — таблица SQLite. У PostgreSQL её нет, и запрос падает
+    с «relation sqlite_master does not exist», унося с собой весь запуск:
+    миграции идут до приёма первого запроса.
 
-    Спрашивать надо через `table_exists` из пакета миграций: он
-    обращается к той базе, к которой подключились, на её языке.
+    Почему проверяется ФУНКЦИЯ, а не файл
+    --------------------------------------
 
-    Исключение — `m001`: там ветка `dialect.name == "sqlite"` СОЗНАТЕЛЬНА,
-    SQLite не умеет `ALTER TABLE ADD CONSTRAINT`, и таблица пересоздаётся.
-    Такое ветвление разрешено; запрещено молча считать базу SQLite.
+    Первый вид этого сторожа искал `dialect` во всём файле — и пропустил
+    настоящую беду. В `m001` слово `dialect` есть, но совсем в другом
+    месте: в `upgrade`, где ветвление сознательное. А `_has_check` рядом
+    спрашивала у `sqlite_master` безусловно, и развёртывание 08.09.2026
+    упало именно там.
+
+    Урок: сторож, который смотрит слишком широко, успокаивается зря.
+    Проверка диалекта должна стоять в ТОЙ ЖЕ функции, что и запрос,
+    иначе она ничего не охраняет.
     """
+    import ast
     from pathlib import Path as _Path
 
     папка = _Path(__file__).resolve().parent.parent / "app" / "migrations"
     виноватые = []
+
     for файл in sorted(папка.glob("m0*.py")):
-        текст = файл.read_text(encoding="utf-8")
-        # Пояснения не в счёт — ищем в коде.
-        код = "\n".join(
-            строка for строка in текст.splitlines()
-            if not строка.lstrip().startswith("#")
-        )
-        if "sqlite_master" in код and "dialect" not in код:
-            виноватые.append(файл.name)
+        дерево = ast.parse(файл.read_text(encoding="utf-8"))
+        for узел in ast.walk(дерево):
+            if not isinstance(узел, ast.FunctionDef):
+                continue
+            тело = ast.dump(узел)
+            if "sqlite_master" not in тело:
+                continue
+            # Запрос есть — значит, рядом обязана быть проверка базы.
+            if "dialect" not in тело:
+                виноватые.append(f"{файл.name}:{узел.name}")
 
     assert not виноватые, (
-        "миграции спрашивают у sqlite_master без проверки диалекта — "
+        "функции спрашивают у sqlite_master без проверки диалекта — "
         f"на PostgreSQL они упадут: {виноватые}"
     )
 

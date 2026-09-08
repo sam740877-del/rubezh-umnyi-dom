@@ -47,14 +47,28 @@ def _has_check(session: Session, table: str, column: str) -> bool:
     Читаем определение таблицы из самой базы: имена ограничений задаёт
     SQLAlchemy, и полагаться на них нельзя — вернее посмотреть, упоминается
     ли колонка в разделе CHECK.
+
+    Спрашивать приходится по-разному. У SQLite определение таблицы лежит
+    текстом в `sqlite_master`; у PostgreSQL такой таблицы нет вовсе, и
+    ограничения живут в системном каталоге. Развёртывание 08.09.2026
+    упало здесь: «relation "sqlite_master" does not exist» — эту функцию
+    я пропустил, правя остальные миграции.
     """
-    row = session.execute(
-        text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = :name"),
-        {"name": table},
-    ).fetchone()
-    if row is None or not row[0]:
-        return False
-    return "CHECK" in row[0].upper() and column in row[0]
+    if session.connection().dialect.name == "sqlite":
+        row = session.execute(
+            text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = :name"),
+            {"name": table},
+        ).fetchone()
+        if row is None or not row[0]:
+            return False
+        return "CHECK" in row[0].upper() and column in row[0]
+
+    # У прочих баз спрашиваем через SQLAlchemy: он знает, как устроен
+    # системный каталог каждой, и нам не нужно знать этого самим.
+    for constraint in inspect(session.connection()).get_check_constraints(table):
+        if column in (constraint.get("sqltext") or ""):
+            return True
+    return False
 
 
 def _rebuild_sqlite_table(session: Session, table: str) -> None:
