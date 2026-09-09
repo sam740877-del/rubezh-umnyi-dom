@@ -72,17 +72,23 @@ BASE_DIR = Path(__file__).resolve().parent
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global _BOT_THREAD
     init_db()
-    поток = _start_bot_if_asked()
+    _BOT_THREAD = _start_bot_if_asked()
     try:
         yield
     finally:
-        if поток is not None:
+        if _BOT_THREAD is not None:
             _BOT_STOP.set()
 
 
 #: Просьба боту остановиться. Взводится, когда сервер гасят.
 _BOT_STOP = threading.Event()
+
+#: Поток опроса MAX, когда бот поднят рядом с сайтом. Держим ссылку не ради
+#: остановки — ради `/healthz`: только по живому потоку видно разницу между
+#: «бот опрашивает MAX» и «поток тихо умер, а сайт как ни в чём не бывало».
+_BOT_THREAD: threading.Thread | None = None
 
 
 def _start_bot_if_asked():
@@ -153,6 +159,47 @@ def _bot_loop() -> None:
 
 app = FastAPI(title="Учёт СКИ", docs_url="/api/docs", redoc_url=None, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+
+def _bot_health() -> str:
+    """Состояние бота словом: «выключен», «нет токена», «работает», «остановлен».
+
+    «Остановлен» — единственное, что требует вмешательства: бота просили
+    поднять, токен на месте, а потока нет. Значит опрос упал так, что цикл
+    не выжил, и мастера на объекте узнают об этом раньше нас.
+    """
+    if os.environ.get("SKI_BOT_INLINE", "").strip() not in ("1", "true", "yes"):
+        return "выключен"
+    if not max_api.is_configured():
+        return "нет токена"
+    if _BOT_THREAD is not None and _BOT_THREAD.is_alive():
+        return "работает"
+    return "остановлен"
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, object]:
+    r"""Признак жизни — для внешнего пинговщика и для быстрой проверки.
+
+    Зачем отдельный адрес, а не главная страница
+    --------------------------------------------
+
+    На бесплатном тарифе Render служба засыпает через четверть часа
+    БЕЗ ВХОДЯЩИХ запросов. А бот ходит за сообщениями сам, наружу, —
+    входящих от этого не возникает. Уснувшая служба убита вместе с потоком
+    бота, и разбудить его сообщением в MAX нельзя: мессенджер к нам
+    не стучится, он ждёт, пока придём мы. Поэтому стенд держат живым
+    внешним пинговщиком (см. `docs/PROVERKA_STENDA.md`).
+
+    Пинговать главную нельзя: она считает укомплектованность всех участков
+    и не годится для дёрганья раз в десять минут. Здесь — две строки
+    без единого запроса к базе.
+
+    Ответ заодно отвечает на вопрос «бот вообще жив?» — без входа
+    в систему, чтобы пинговщику не требовался пароль. Ничего закрытого
+    он не выдаёт: ни имён, ни настроек, ни токена.
+    """
+    return {"ok": True, "бот": _bot_health()}
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals.update(
     CATEGORIES=CATEGORIES,
@@ -269,7 +316,7 @@ def current_section(request: Request) -> str:
 
 #: Куда пускают без входа: сама страница входа, выход, статика и первичная
 #: настройка. Список закрытый — всё остальное требует входа.
-PUBLIC_PATHS = {"/login", "/logout", "/setup"}
+PUBLIC_PATHS = {"/login", "/logout", "/setup", "/healthz"}
 
 
 def optional_user(request: Request, db: Session) -> CurrentUser | None:

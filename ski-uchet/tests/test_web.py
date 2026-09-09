@@ -583,3 +583,60 @@ def test_instrument_list_csv_has_same_data(client) -> None:
     assert response.status_code == 200
     assert response.text.startswith("﻿"), "нет метки кодировки для Excel"
     assert "Свидетельство" in response.text
+
+
+# --------------------------------------------------------------------------
+# Признак жизни
+# --------------------------------------------------------------------------
+
+
+def test_healthz_open_without_login(anon_client):
+    """Пинговщику пароль не выдают — иначе он не сможет будить стенд."""
+    response = anon_client.get("/healthz", follow_redirects=False)
+    assert response.status_code == 200, "застава не должна закрывать /healthz"
+    assert response.json()["ok"] is True
+
+
+def test_healthz_reports_bot_off_by_default(anon_client, monkeypatch):
+    """Без `SKI_BOT_INLINE` бота рядом с сайтом нет — так и написано."""
+    monkeypatch.delenv("SKI_BOT_INLINE", raising=False)
+    assert anon_client.get("/healthz").json()["бот"] == "выключен"
+
+
+def test_healthz_reports_missing_token(anon_client, monkeypatch):
+    """Бота просили, а токена нет: молчание объяснимо, и это видно снаружи."""
+    monkeypatch.setenv("SKI_BOT_INLINE", "1")
+    monkeypatch.setattr("app.max_api.is_configured", lambda: False)
+    assert anon_client.get("/healthz").json()["бот"] == "нет токена"
+
+
+def test_healthz_reports_dead_thread(anon_client, monkeypatch):
+    """Главное, ради чего проверка и заведена.
+
+    Бота просили, токен на месте, а потока нет — значит опрос умер, и сайт
+    об этом молчал бы: страницы открываются как ни в чём не бывало.
+    """
+    monkeypatch.setenv("SKI_BOT_INLINE", "1")
+    monkeypatch.setattr("app.max_api.is_configured", lambda: True)
+    monkeypatch.setattr("app.main._BOT_THREAD", None)
+    assert anon_client.get("/healthz").json()["бот"] == "остановлен"
+
+
+def test_healthz_reports_live_thread(anon_client, monkeypatch):
+    import threading
+
+    поток = threading.Thread(target=lambda: None, daemon=True)
+    monkeypatch.setenv("SKI_BOT_INLINE", "1")
+    monkeypatch.setattr("app.max_api.is_configured", lambda: True)
+    monkeypatch.setattr("app.main._BOT_THREAD", поток)
+    monkeypatch.setattr(поток, "is_alive", lambda: True)
+    assert anon_client.get("/healthz").json()["бот"] == "работает"
+
+
+def test_healthz_does_not_touch_database(anon_client, monkeypatch):
+    """Пинг раз в десять минут не должен считать укомплектованность участков."""
+    def нельзя(*_args, **_kwargs):
+        raise AssertionError("проверка жизни обратилась к базе")
+
+    monkeypatch.setattr("app.database.SessionLocal", нельзя)
+    assert anon_client.get("/healthz").status_code == 200
