@@ -1530,6 +1530,11 @@ const CABINET_POLL_MS  = 30000;
 const OFFLINE_AFTER_MS = 12000;
 const PROBE_TIMEOUT_MS = 3500;   
 const CABINET_TIMEOUT_MS = 15000;
+const LOKALNYY_ADRES = /^https?:\/\/(localhost|127\.)/i.test(STAND_URL);
+const OTVET_MS       = LOKALNYY_ADRES ? 6000 : 16000;
+const PROBA_MS       = LOKALNYY_ADRES ? PROBE_TIMEOUT_MS : 12000;
+const OPROS_MS       = LOKALNYY_ADRES ? POLL_INTERVAL_MS : 9000;
+const MOLCHANIE_MS   = LOKALNYY_ADRES ? OFFLINE_AFTER_MS : 30000;
 const PLAN_POS = {
   living_room_main_light:    {x: 47.5, y: 60.0, label: "Основной свет"},
   living_room_accent_light:  {x: 56.6, y: 81.7, label: "Подсветка"},
@@ -1718,7 +1723,7 @@ function summaryLine(after){
 }
 async function fetchDevices(){
   const r = await fetch(STAND_URL + "/api/public/devices",
-    {cache:"no-store", signal: AbortSignal.timeout(6000)});
+    {cache:"no-store", signal: AbortSignal.timeout(OTVET_MS)});
   if (!r.ok) throw new Error("нет связи");
   return (await r.json()).devices || [];
 }
@@ -1743,7 +1748,7 @@ async function printProtocol(log, title, lines, after, extraHint){
 async function runSceneLive(key, title){
   const before = lightsSnapshot(await fetchDevices());
   const r = await fetch(STAND_URL + "/api/public/scene/" + key,
-    {method:"POST", signal: AbortSignal.timeout(6000)});
+    {method:"POST", signal: AbortSignal.timeout(OTVET_MS)});
   if (!r.ok) throw new Error("сценарий не запустился");
   await sleep(2200);
   const after = lightsSnapshot(await fetchDevices());
@@ -1897,11 +1902,13 @@ function setStatus(online){
     }
   }
 }
+let oprosIdet = false;   
 async function pollStand(){
-  if (processRunning) return;
+  if (processRunning || oprosIdet) return;
+  oprosIdet = true;
   try{
     const res = await fetch(STAND_URL + "/api/public/devices",
-      {cache:"no-store", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)});
+      {cache:"no-store", signal: AbortSignal.timeout(PROBA_MS)});
     if(!res.ok) throw new Error("bad status");
     const data = await res.json();
     lastOkAt = Date.now();
@@ -1911,8 +1918,10 @@ async function pollStand(){
     syncDemoFromLive(data.devices || []);
     renderDots(data.devices || []);
   }catch(e){
+  }finally{
+    oprosIdet = false;
   }
-  if(Date.now() - lastOkAt > OFFLINE_AFTER_MS){
+  if(Date.now() - lastOkAt > MOLCHANIE_MS){
     standOnline = false;
     setStatus(false);
     renderFromLocal();
@@ -2084,7 +2093,7 @@ applySceneLocal("gosti");
 renderFromLocal();
 setCabinetLinks(false);
 pollStand();
-setInterval(pollStand, POLL_INTERVAL_MS);
+setInterval(pollStand, OPROS_MS);
 pollCabinet();
 setInterval(pollCabinet, CABINET_POLL_MS);
 </script>
