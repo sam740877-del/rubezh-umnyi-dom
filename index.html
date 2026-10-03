@@ -1523,9 +1523,9 @@ const NOMERA = {
   living_room_illuminance: 12, living_room_ir: 13,
   bedroom_light: 14,
 };
-const CABINET_URL = readAddress("cabinet", "");
-const DEMO_URL = CABINET_URL ? CABINET_URL + "/" : "#live";
-const PLAN_URL = CABINET_URL ? CABINET_URL + "/plan-kvartiry/kvartira" : "#live-plan";
+const CABINET_URL = readAddress("cabinet", "https://rubezh-dom.serveousercontent.com");
+const DEMO_URL = CABINET_URL + "/";
+const PLAN_URL = CABINET_URL + "/plan-kvartiry/kvartira";
 const POLL_INTERVAL_MS = 4000;   
 const CABINET_POLL_MS  = 30000;  
 const OFFLINE_AFTER_MS = 12000;
