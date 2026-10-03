@@ -1404,12 +1404,13 @@ footer{
       </div>
     </div>
     <div class="cta-row">
-      <a class="btn btn-primary" href="#" id="demo-link">Открыть экран жильца</a>
-      <a class="btn btn-ghost" href="#" id="plan-link">Открыть план квартиры</a>
+      <a class="btn btn-primary" href="#" id="demo-link">Войти в кабинет Home Assistant</a>
+      <a class="btn btn-ghost" href="#" id="plan-link" style="display:none">Открыть план квартиры</a>
     </div>
     <p class="cabinet-login">
       Кабинет попросит логин — это настоящая система, а не витрина.
-      Доступ выдаю на время показа, напишите: пришлю вход и включу стенд.
+      Доступ выдаю на время показа, напишите: пришлю вход и включу стенд.<br>
+      После входа выберите дашборд «Мой дом» или «План квартиры» в меню слева.
     </p>
     <div class="note" id="cabinet-note" style="margin-top:26px" hidden>
       <b>Живой кабинет сейчас выключен.</b> Он работает на время показа —
@@ -1523,8 +1524,8 @@ const NOMERA = {
   bedroom_light: 14,
 };
 const CABINET_URL = readAddress("cabinet", "");
-const DEMO_URL = CABINET_URL ? CABINET_URL + "/moi-dom/home"              : "#live";
-const PLAN_URL = CABINET_URL ? CABINET_URL + "/plan-kvartiry/kvartira"    : "#live-plan";
+const DEMO_URL = CABINET_URL ? CABINET_URL + "/" : "#live";
+const PLAN_URL = CABINET_URL ? CABINET_URL + "/plan-kvartiry/kvartira" : "#live-plan";
 const POLL_INTERVAL_MS = 4000;   
 const CABINET_POLL_MS  = 30000;  
 const OFFLINE_AFTER_MS = 12000;
