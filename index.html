@@ -359,6 +359,18 @@ table.cmp tr.row-final td{border-top:2px solid var(--accent);
   transition:opacity .15s ease-out,color .15s ease-out;
 }
 .live-dot-label.trevozhnaya{color:var(--dark-danger,#E2574C)}
+.device-info-popup{position:absolute;z-index:100;background:var(--dark-surface);
+  border:1px solid var(--dark-line);border-radius:6px;padding:12px 14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:280px;font-size:13px;
+  line-height:1.6;color:var(--dark-ink-2);animation:popup-fade-in .2s ease-out}
+@keyframes popup-fade-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.device-info-title{font-weight:600;color:var(--dark-ink);margin-bottom:6px;font-size:14px}
+.device-info-desc{color:var(--dark-ink-2);margin-bottom:8px}
+.device-info-action{color:var(--dark-accent);border-top:1px solid var(--dark-line);
+  padding-top:8px;margin-top:8px;font-style:italic}
+.device-info-close{position:absolute;top:4px;right:8px;background:none;border:none;
+  font-size:20px;color:var(--dark-ink-3);cursor:pointer;line-height:1;padding:2px 6px}
+.device-info-close:hover{color:var(--dark-ink)}
 .live-dot.pokazan{box-shadow:0 0 0 3px var(--accent)}
 .live-dot.s-nomerom{font-family:var(--mono);font-size:10px;font-weight:600}
 .live-dot-label.lp-left{transform:translate(calc(-100% - 14px),-50%)}
@@ -1816,6 +1828,63 @@ function obnovit_pol(deviceId, isOn, st){
   if (pol) pol.setAttribute("opacity", (max * 0.06).toFixed(3));
 }
 let dotsBuilt = false;
+const DEVICE_INFO = {
+  kitchen_smoke: {
+    desc: "Датчик дыма на кухне",
+    action: "При задымлении: весь свет 100%, вытяжка включается, сирена",
+    scene: null,
+  },
+  bathroom_leak: {
+    desc: "Датчик протечки в санузле",
+    action: "При протечке: перекрытие воды, отключение стиральной машины, уведомление",
+    scene: null,
+  },
+  kitchen_leak: {
+    desc: "Датчик протечки на кухне",
+    action: "При протечке: перекрытие воды, отключение стиральной машины, уведомление",
+    scene: null,
+  },
+  bathroom_sos: {
+    desc: "Кнопка помощи в санузле",
+    action: "При нажатии: свет 100%, уведомление родственникам",
+    scene: null,
+  },
+  entrance_door: {
+    desc: "Входная дверь",
+    action: "Открывается/закрывается — автоматика реагирует",
+    scene: null,
+  },
+  hallway_motion: {
+    desc: "Датчик движения в прихожей",
+    action: "При движении ночью: ночник включается",
+    scene: null,
+  },
+  entrance_button: {
+    desc: "Выключатель у двери",
+    action: "Одиночное нажатие — сценарий, двойное — другое действие",
+    scene: null,
+  },
+  bedroom_button: {
+    desc: "Выключатель у кровати",
+    action: "Одиночное — Кино, двойное — Кино, удержание — Всё выключить",
+    scene: null,
+  },
+  living_room_ir: {
+    desc: "ИК-пульт для кондиционера",
+    action: "Управляет кондиционером в гостиной",
+    scene: null,
+  },
+  washer_socket: {
+    desc: "Розетка стиральной машины",
+    action: "Отключается при протечке или уходе из дома",
+    scene: null,
+  },
+  bathroom_fan: {
+    desc: "Вентилятор санузла",
+    action: "Включается при высокой влажности, гаснет когда сухо",
+    scene: null,
+  },
+};
 function renderDots(devices){
   if(!dotsBuilt){
     liveDots.innerHTML = "";
@@ -1840,6 +1909,10 @@ function renderDots(devices){
       if (!ZNACHIMYE.has(d.device_id)) label.classList.add("skrytaya");
       label.dataset.labelFor = d.device_id;
       liveDots.appendChild(label);
+      dot.addEventListener("click", () => {
+        showDeviceInfo(d.device_id, d.name, d.domain);
+      });
+      dot.style.cursor = "pointer";
     }
     postroit_spisok(devices);
     dotsBuilt = true;
@@ -1883,6 +1956,48 @@ function renderDots(devices){
 }
 function renderFromLocal(){
   renderDots(demoDeviceList());
+}
+function showDeviceInfo(deviceId, name, domain){
+  const old = document.getElementById("device-info-popup");
+  if (old) old.remove();
+  const info = DEVICE_INFO[deviceId];
+  if (!info) return; 
+  const popup = document.createElement("div");
+  popup.id = "device-info-popup";
+  popup.className = "device-info-popup";
+  const title = document.createElement("div");
+  title.className = "device-info-title";
+  title.textContent = name;
+  const desc = document.createElement("div");
+  desc.className = "device-info-desc";
+  desc.textContent = info.desc;
+  const action = document.createElement("div");
+  action.className = "device-info-action";
+  action.textContent = info.action;
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "device-info-close";
+  closeBtn.textContent = "×";
+  closeBtn.onclick = () => popup.remove();
+  popup.appendChild(closeBtn);
+  popup.appendChild(title);
+  popup.appendChild(desc);
+  popup.appendChild(action);
+  const dot = liveDots.querySelector(`[data-id="${deviceId}"]`);
+  if (dot) {
+    const rect = dot.getBoundingClientRect();
+    const planRect = liveDots.getBoundingClientRect();
+    popup.style.left = (rect.left - planRect.left + 20) + "px";
+    popup.style.top = (rect.top - planRect.top - 10) + "px";
+  }
+  liveDots.appendChild(popup);
+  setTimeout(() => {
+    document.addEventListener("click", function closeHandler(e){
+      if (!popup.contains(e.target)) {
+        popup.remove();
+        document.removeEventListener("click", closeHandler);
+      }
+    });
+  }, 100);
 }
 function syncDemoFromLive(devices){
   for (const d of devices){
