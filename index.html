@@ -1455,7 +1455,12 @@ footer{
   </div>
 </footer>
 <script>
-const STAND_URL   = "http://localhost:8081";
+function readAddress(key, fallback){
+  const given = new URLSearchParams(location.search).get(key);
+  if (given) { try { localStorage.setItem("rubezh:" + key, given); } catch (e) {} return given; }
+  try { return localStorage.getItem("rubezh:" + key) || fallback; } catch (e) { return fallback; }
+}
+const STAND_URL = readAddress("stand", "http://localhost:8081");
 const vspyshki = {};
 function vspyhnut_imya(devId, trevoga){
   const label = document.querySelector('[data-label-for="'+devId+'"]');
@@ -1517,9 +1522,9 @@ const NOMERA = {
   living_room_illuminance: 12, living_room_ir: 13,
   bedroom_light: 14,
 };
-const CABINET_URL = "https://rubezh-dom.serveousercontent.com";
-const DEMO_URL = CABINET_URL + "/moi-dom/home";           
-const PLAN_URL = CABINET_URL + "/plan-kvartiry/kvartira"; 
+const CABINET_URL = readAddress("cabinet", "");
+const DEMO_URL = CABINET_URL ? CABINET_URL + "/moi-dom/home"              : "#live";
+const PLAN_URL = CABINET_URL ? CABINET_URL + "/plan-kvartiry/kvartira"    : "#live-plan";
 const POLL_INTERVAL_MS = 4000;   
 const CABINET_POLL_MS  = 30000;  
 const OFFLINE_AFTER_MS = 12000;
@@ -1914,6 +1919,7 @@ async function pollStand(){
   }
 }
 function checkCabinet(){
+  if (!CABINET_URL) return Promise.resolve(true);
   return new Promise(resolve => {
     const img = new Image();
     const timer = setTimeout(() => { img.src = ""; resolve(false); }, CABINET_TIMEOUT_MS);
